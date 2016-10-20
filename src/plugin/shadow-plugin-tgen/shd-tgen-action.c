@@ -36,6 +36,7 @@ typedef struct _TGenActionTransferData {
     TGenTransferType type;
     TGenTransportProtocol protocol;
     guint64 size;
+    guint64 sendRate;
     guint64 timeoutNanos;
     gboolean timeoutIsSet;
     guint64 stalloutNanos;
@@ -610,7 +611,7 @@ TGenAction* tgenaction_newPauseAction(const gchar* timeStr, glong totalIncoming,
 }
 
 TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* protocolStr,
-        const gchar* sizeStr, const gchar* peersStr, const gchar* timeoutStr, const gchar* stalloutStr, GError** error) {
+        const gchar* sizeStr, const gchar* peersStr, const gchar* timeoutStr, const gchar* stalloutStr, GError** error, const gchar* rateStr) {
     g_assert(error);
 
     /* type is required */
@@ -663,6 +664,14 @@ TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* prot
         return NULL;
     }
 
+    guint64 sendRate = 0;
+    if (!rateStr || !g_ascii_strncasecmp(rateStr, "\0", (gsize) 1)) {
+        // DREW this is optional
+    } else {
+        sendRate = g_ascii_strtoull(rateStr, NULL, 10);
+    }
+
+
     /* peers are optional */
     TGenPool* peerPool = NULL;
     if (peersStr && g_ascii_strncasecmp(peersStr, "\0", (gsize) 1)) {
@@ -705,6 +714,7 @@ TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* prot
     data->protocol = protocol;
     data->type = type;
     data->size = size;
+    data->sendRate = sendRate;
     data->peers = peerPool;
     data->timeoutNanos = timeoutNanos;
     data->timeoutIsSet = timeoutIsSet;
@@ -777,7 +787,7 @@ GLogLevelFlags tgenaction_getLogLevel(TGenAction* action) {
 }
 
 void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* typeOut,
-        TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut) {
+        TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut, guint64* sendRateOut) {
     TGEN_ASSERT(action);
     g_assert(action->data && action->type == TGEN_ACTION_TRANSFER);
 
@@ -789,6 +799,9 @@ void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* type
     }
     if(sizeOut) {
         *sizeOut = ((TGenActionTransferData*)action->data)->size;
+    }
+    if(sendRateOut) {
+        *sendRateOut = ((TGenActionTransferData*)action->data)->sendRate; // DREW
     }
     if(timeoutOut) {
         TGenActionTransferData* data = (TGenActionTransferData*)action->data;

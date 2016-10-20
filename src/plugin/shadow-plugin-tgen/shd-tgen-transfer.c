@@ -47,6 +47,7 @@ struct _TGenTransfer {
     gchar* hostname;
     gsize remoteCount;
     gchar* remoteName;
+    gint64 sendRate; // DREW
 
     /* socket communication layer and buffers */
     TGenTransport* transport;
@@ -647,6 +648,7 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
     /* try to flush any leftover bytes */
     transfer->bytes.payloadWrite += _tgentransfer_flushOut(transfer);
 
+
     /* keep writing until blocked */
     while(!transfer->writeBuffer) {
         gsize length = MIN(16384, (transfer->size - transfer->bytes.payloadWrite));
@@ -657,12 +659,21 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
             g_checksum_update(transfer->payloadChecksum, (guchar*)transfer->writeBuffer->str,
                     (gssize)transfer->writeBuffer->len);
 
+            // pause before sending (in microsends) DREW
+            gint64 rateParameter = transfer->sendRate; // this is .01 seconds or 10000 microseconds
+            gint64 timeToNextWrite = -logf(1.0f - (float) random() / (RAND_MAX + 1)) / rateParameter;
+            gint64 endTime = g_get_monotonic_time() + timeToNextWrite;
+            while(g_get_monotonic_time() < endTime) {} // busy wait
+
             transfer->bytes.payloadWrite += _tgentransfer_flushOut(transfer);
 
             if(firstByte && transfer->bytes.payloadWrite > 0) {
                 firstByte = FALSE;
                 transfer->time.firstPayloadByte = g_get_monotonic_time();
             }
+
+
+
         } else {
             /* payload done, send the checksum next */
             _tgentransfer_changeState(transfer, TGEN_XFER_CHECKSUM);
@@ -938,7 +949,7 @@ gboolean tgentransfer_onCheckTimeout(TGenTransfer* transfer, gint descriptor) {
 
 TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType type, gsize size, guint64 timeout, guint64 stallout,
         TGenTransport* transport, TGenTransfer_notifyCompleteFunc notify,
-        gpointer data1, gpointer data2, GDestroyNotify destructData1, GDestroyNotify destructData2) {
+        gpointer data1, gpointer data2, GDestroyNotify destructData1, GDestroyNotify destructData2, gint64 sendRate) {
     TGenTransfer* transfer = g_new0(TGenTransfer, 1);
     transfer->magic = TGEN_MAGIC;
     transfer->refcount = 1;
@@ -967,8 +978,10 @@ TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType
         transfer->isCommander = TRUE;
         transfer->type = type;
         transfer->size = size;
+        transfer->sendRate = sendRate; // DREW
         transfer->events |= TGEN_EVENT_WRITE;
     }
+
 
     transfer->payloadChecksum = g_checksum_new(G_CHECKSUM_MD5);
 

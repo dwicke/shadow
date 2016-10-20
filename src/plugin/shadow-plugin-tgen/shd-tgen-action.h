@@ -23,7 +23,7 @@ TGenAction* tgenaction_newEndAction(const gchar* timeStr, const gchar* countStr,
         const gchar* sizeStr, GError** error);
 TGenAction* tgenaction_newPauseAction(const gchar* timeStr, glong totalIncoming, GError** error);
 TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* protocolStr,
-        const gchar* sizeStr, const gchar* peersStr, const gchar* timeoutStr, const gchar* stalloutStr, GError** error);
+        const gchar* sizeStr, const gchar* peersStr, const gchar* timeoutStr, const gchar* stalloutStr, GError** error, const gchar* rateStr);
 
 void tgenaction_ref(TGenAction* action);
 void tgenaction_unref(TGenAction* action);

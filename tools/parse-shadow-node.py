@@ -29,7 +29,6 @@ The default mode is to filter and parse the log file using a single
 process; this will be done with multiple worker processes when passing
 the '-m' option.\n
 
-augmenting so as to parse packet level heartbeat info
 """
 
 SHADOWJSON="stats.shadow.json"
@@ -79,7 +78,7 @@ def run(args):
     print >> sys.stderr, "processing input from {0}...".format(args.logpath)
     source, xzproc = source_prepare(args.logpath)
 
-    d = {'nodes':{}}
+    d = {'ticks':{}, 'nodes':{}}
     m = {'mem':0, 'hours':0}
     p = Pool(args.nprocesses)
     try:
@@ -118,28 +117,18 @@ def do_reduce(data, m, result):
         if max_mem > m['mem']: m['mem'] = max_mem
         if max_hours > m['hours']: m['hours'] = max_hours
 
-        #for s in d['ticks']: data['ticks'][s] = d['ticks'][s]
+        for s in d['ticks']: data['ticks'][s] = d['ticks'][s]
 
         for n in d['nodes']:
-            if n not in data['nodes']: 
-                data['nodes'][n] = {}
-            for p in d['nodes'][n]:
-                if p not in data['nodes'][n]:
-                    data['nodes'][n][p] = {'send':{}}
-
-                for l in LABELS:
-                    #if l not in data['nodes'][n][p]['recv']: data['nodes'][n][p]['recv'][l] = {}
-                    if l not in data['nodes'][n][p]['send']: data['nodes'][n][p]['send'][l] = {}
-                    # for s in d['nodes'][n][p]['recv'][l]:
-                    #     if s not in data['nodes'][n][p]['recv']: data['nodes'][n][p]['recv'][l][s] = 0
-                    #     data['nodes'][n][p]['recv'][l][s] += d['nodes'][n][p]['recv'][l][s]
-                    for s in d['nodes'][n][p]['send'][l]:
-                        if s not in data['nodes'][n][p]['send']: data['nodes'][n][p]['send'][l][s] = 0
-                        data['nodes'][n][p]['send'][l][s] += d['nodes'][n][p]['send'][l][s]
-                        
-
-
-
+            if n not in data['nodes']: data['nodes'][n] = {'recv':{}, 'send':{}}
+            for l in LABELS:
+                if l not in data['nodes'][n]['recv']: data['nodes'][n]['recv'][l] = {}
+                if l not in data['nodes'][n]['send']: data['nodes'][n]['send'][l] = {}
+                for s in d['nodes'][n]['recv'][l]:
+                    if s not in data['nodes'][n]['recv']: data['nodes'][n]['recv'][l][s] = 0
+                    if s not in data['nodes'][n]['send']: data['nodes'][n]['send'][l][s] = 0
+                    data['nodes'][n]['recv'][l][s] += d['nodes'][n]['recv'][l][s]
+                    data['nodes'][n]['send'][l][s] += d['nodes'][n]['send'][l][s]
     return data, m
 
 
@@ -147,7 +136,7 @@ def process_shadow_lines(line):
     signal(SIGINT, SIG_IGN) # ignore interrupts
 
     max_mem, max_seconds = 0, 0
-    d = { 'nodes':{}}
+    d = {'ticks':{}, 'nodes':{}}
 
     if re.search("slave_heartbeat", line) is not None:
         parts = line.strip().split()
@@ -158,15 +147,14 @@ def process_shadow_lines(line):
 
         second = int(sim_seconds)
         maxrss = float(parts[13].split('=')[1]) if 'maxrss' in parts[13] else -1.0
-        #if second not in d['ticks']: d['ticks'][second] = {'time_seconds':real_seconds, 'maxrss_gib':maxrss}
+        if second not in d['ticks']: d['ticks'][second] = {'time_seconds':real_seconds, 'maxrss_gib':maxrss}
 
         if maxrss > max_mem: max_mem = maxrss
         if real_seconds > max_seconds: max_seconds = real_seconds
 
     elif re.search("shadow-heartbeat", line) is not None:
-
         parts = line.strip().split()
-        if len(parts) < 10 or '[socket]' != parts[8]: return None
+        if len(parts) < 10 or '[node]' != parts[8]: return None
 
         real_seconds = timestamp_to_seconds(parts[0])
         if real_seconds > max_seconds: max_seconds = real_seconds
@@ -175,75 +163,52 @@ def process_shadow_lines(line):
 
         name = parts[4].lstrip('[').rstrip(']') # eg: [webclient2-11.0.5.99]
 
-        if "client" in name or "server" in name:
-            socketstats = parts[9].split('|')
+        mods = parts[9].split(';')
+        #nodestats = mods[0].split(',')
+        #localin = mods[1].split(',')
+        #localout = mods[2].split(',')
+        remotein = mods[3].split(',')
+        remoteout = mods[4].split(',')
 
+        if name not in d['nodes']:
+            d['nodes'][name] = {'recv':{}, 'send':{}}
+            for label in LABELS:
+                d['nodes'][name]['recv'][label] = {}
+                d['nodes'][name]['send'][label] = {}
+        for label in LABELS:
+            if second not in d['nodes'][name]['recv'][label]: d['nodes'][name]['recv'][label][second] = 0
+            if second not in d['nodes'][name]['send'][label]: d['nodes'][name]['send'][label][second] = 0
 
-            for sstats in socketstats:
+        '''
+        a packet is a data packet if it contains a payload, and a control packet otherwise.
+        each packet potentially has a header and a payload, and each packet is either
+        a first transmission or a re-transmission.
 
-                mods = sstats.split(';')
+        shadow prints the following in its heartbeat messages for the bytes counters:
+        packets-total,bytes-total,
+        packets-control,bytes-control-header,
+        packets-control-retrans,bytes-control-header-retrans,
+        packets-data,bytes-data-header,bytes-data-payload,
+        packets-data-retrans,bytes-data-header-retrans,bytes-data-payload-retrans
+        '''
+        # packet counts are also available, but we are ignoring them
+        d['nodes'][name]['recv']['packets-total'][second] += int(remotein[0])
+        d['nodes'][name]['recv']['bytes_total'][second] += int(remotein[1])
+        #d['nodes'][name]['recv']['bytes_control_header'][second] += int(remotein[3])
+        #d['nodes'][name]['recv']['bytes_control_header_retrans'][second] += int(remotein[5])
+        #d['nodes'][name]['recv']['bytes_data_header'][second] += int(remotein[7])
+        #d['nodes'][name]['recv']['bytes_data_payload'][second] += int(remotein[8])
+        #d['nodes'][name]['recv']['bytes_data_header_retrans'][second] += int(remotein[10])
+        #d['nodes'][name]['recv']['bytes_data_payload_retrans'][second] += int(remotein[11])
 
-                nodestats = mods[0].split(',')
-                #inoutlensize = mods[1].split(',')
-                #sendrecvSize = mods[2].split(',')
-                #localin = mods[3].split(',')
-                #localout = mods[4].split(',')
-                remotein = mods[5].split(',')
-                remoteout = mods[6].split(',')
-
-                peername = nodestats[2].split(':')[0]
-                if "server" in peername:
-                    # if peername == "server1" and remoteout[0] > 0 and "bulkclient1" in name:
-                    #         print(name)
-                    #         print(peername)
-                    #         print(second)
-                    #         print(remoteout[1])
-
-                    # if peername == "bulkclient1" and remotein[0] > 0 and "server1" in name:
-                    #         print(name)
-                    #         print(peername)
-                    #         print(second)
-                    #         print(remoteout[1])
-                    
-                    if name not in d['nodes']:
-                        d['nodes'][name] = {}
-                    if peername not in d['nodes'][name]:
-                        d['nodes'][name][peername] = { 'send':{}}
-                        for label in LABELS:
-                           # d['nodes'][name][peername]['recv'][label] = {}
-                            d['nodes'][name][peername]['send'][label] = {}
-
-                    # for label in LABELS:
-                    #     if second not in d['nodes'][name][peername]['recv'][label]: d['nodes'][name][peername]['recv'][label][second] = 0
-                    #     if second not in d['nodes'][name][peername]['send'][label]: d['nodes'][name][peername]['send'][label][second] = 0
-
-                    '''
-                    a packet is a data packet if it contains a payload, and a control packet otherwise.
-                    each packet potentially has a header and a payload, and each packet is either
-                    a first transmission or a re-transmission.
-
-                    shadow prints the following in its heartbeat messages for the bytes counters:
-                    packets-total,bytes-total,
-                    packets-control,bytes-control-header,
-                    packets-control-retrans,bytes-control-header-retrans,
-                    packets-data,bytes-data-header,bytes-data-payload,
-                    packets-data-retrans,bytes-data-header-retrans,bytes-data-payload-retrans
-                    '''
-                    # if int(remotein[0]) > 0:
-                    #     if second not in d['nodes'][name][peername]['recv']['packets-total']: d['nodes'][name][peername]['recv']['packets-total'][second] = 0
-                    #     d['nodes'][name][peername]['recv']['packets-total'][second] += int(remotein[0])
-                    # if int(remotein[1]) > 0:
-                    #     if second not in d['nodes'][name][peername]['recv']['bytes_total']: d['nodes'][name][peername]['recv']['bytes_total'][second] = 0
-                    #     d['nodes'][name][peername]['recv']['bytes_total'][second] += int(remotein[1])
-
-                    if int(remoteout[0]) > 0:
-                        if second not in d['nodes'][name][peername]['send']['packets-total']: d['nodes'][name][peername]['send']['packets-total'][second] = 0
-                        d['nodes'][name][peername]['send']['packets-total'][second] += int(remoteout[0])
-                    if int(remoteout[1]) > 0:
-                        if second not in d['nodes'][name][peername]['send']['bytes_total']: d['nodes'][name][peername]['send']['bytes_total'][second] = 0
-                        d['nodes'][name][peername]['send']['bytes_total'][second] += int(remoteout[1])
-
-        
+        d['nodes'][name]['send']['packets-total'][second] += int(remoteout[0])
+        d['nodes'][name]['send']['bytes_total'][second] += int(remoteout[1])
+        #d['nodes'][name]['send']['bytes_control_header'][second] += int(remoteout[3])
+        #d['nodes'][name]['send']['bytes_control_header_retrans'][second] += int(remoteout[5])
+        #d['nodes'][name]['send']['bytes_data_header'][second] += int(remoteout[7])
+        #d['nodes'][name]['send']['bytes_data_payload'][second] += int(remoteout[8])
+        #d['nodes'][name]['send']['bytes_data_header_retrans'][second] += int(remoteout[10])
+        #d['nodes'][name]['send']['bytes_data_payload_retrans'][second] += int(remoteout[11])
 
     return [max_mem, max_seconds/3600.0, d]
 

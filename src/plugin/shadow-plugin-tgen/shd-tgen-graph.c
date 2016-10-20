@@ -22,6 +22,7 @@ typedef enum {
     TGEN_VA_HEARTBEAT = 1 << 12,
     TGEN_VA_LOGLEVEL = 1 << 13,
     TGEN_EA_WEIGHT = 1 << 14,
+    TGEN_VA_SENDRATE = 1 << 15,
 } AttributeFlags;
 
 struct _TGenGraph {
@@ -339,12 +340,16 @@ static GError* _tgengraph_parseTransferVertex(TGenGraph* g, const gchar* idStr,
             VAS(g->graph, "timeout", vertexIndex) : NULL;
     const gchar* stalloutStr = (g->knownAttributes&TGEN_VA_STALLOUT) ?
             VAS(g->graph, "stallout", vertexIndex) : NULL;
+    // DREW
+    const gchar* rateStr = (g->knownAttributes&TGEN_VA_SENDRATE) ?
+            VAS(g->graph, "sendRate", vertexIndex) : NULL;
 
-    tgen_debug("found vertex %li (%s), type=%s protocol=%s size=%s peers=%s timeout=%s stallout=%s",
-            (glong)vertexIndex, idStr, typeStr, protocolStr, sizeStr, peersStr, timeoutStr, stalloutStr);
+    tgen_debug("found vertex %li (%s), type=%s protocol=%s size=%s peers=%s timeout=%s stallout=%s sendRate=%s",
+            (glong)vertexIndex, idStr, typeStr, protocolStr, sizeStr, peersStr, timeoutStr, stalloutStr, rateStr);
 
     GError* error = NULL;
-    TGenAction* a = tgenaction_newTransferAction(typeStr, protocolStr, sizeStr, peersStr, timeoutStr, stalloutStr, &error);
+    // DREW
+    TGenAction* a = tgenaction_newTransferAction(typeStr, protocolStr, sizeStr, peersStr, timeoutStr, stalloutStr, &error, rateStr);
 
     if(a) {
         _tgengraph_storeAction(g, a, vertexIndex);

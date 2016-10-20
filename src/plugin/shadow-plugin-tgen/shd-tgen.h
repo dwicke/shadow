@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <math.h>
 
 #if 1 /* #ifdef DEBUG */
 #define TGEN_MAGIC 0xABBABAAB

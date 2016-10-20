@@ -102,8 +102,7 @@ def run(args):
             noname_count += 1
             continue
         name_count += 1
-        if "server" in name:
-            d['nodes'][name] = data
+        d['nodes'][name] = data
         success_count += item[2]
         error_count += item[3]
 
@@ -116,16 +115,9 @@ def process_tgen_log(filename):
     signal(SIGINT, SIG_IGN) # ignore interrupts
     source, xzproc = source_prepare(filename)
 
-    d = {}
+    d = {'firstbyte':{}, 'lastbyte':{}, 'errors':{}}
     name = None
     success_count, error_count = 0, 0
-
-
-
-#1970-01-01 00:29:09 1749.090665 [message] [shd-tgen-transfer.c:815] [_tgentransfer_log] [transfer-complete] transport TCP,3976,NULL:216.58.218.174:80,NULL:0.0.0.0:0,bulkclient1:11.0.0.1:28599,state=SUCCESS,error=NONE transfer transfer2,56,server1,GET,1048576,bulkclient1,2,state=SUCCESS,error=NONE total-bytes-read=1048670 total-bytes-write=32 payload-bytes-read=1048576/1048576 (100.00%) usecs-to-socket-create=0 usecs-to-socket-connect=1748161625 usecs-to-proxy-init=-1 usecs-to-proxy-choice=-1 usecs-to-proxy-request=-1 usecs-to-proxy-response=-1 usecs-to-command=5 usecs-to-response=5 usecs-to-first-byte=49734 usecs-to-last-byte=929040 usecs-to-checksum=929040
-
-
-
 
     for line in source:
         try:
@@ -144,35 +136,26 @@ def process_tgen_log(filename):
 
                 if 'transfer-complete' in parts[6]:
                     success_count += 1
-                    # cmdtime = int(parts[21].split('=')[1])/1000000.0
-                    # rsptime = int(parts[22].split('=')[1])/1000000.0
-                    # fbtime = int(parts[23].split('=')[1])/1000000.0
-                    # lbtime = int(parts[24].split('=')[1])/1000000.0
-                    # chktime = int(parts[25].split('=')[1])/1000000.0
+                    cmdtime = int(parts[21].split('=')[1])/1000000.0
+                    rsptime = int(parts[22].split('=')[1])/1000000.0
+                    fbtime = int(parts[23].split('=')[1])/1000000.0
+                    lbtime = int(parts[24].split('=')[1])/1000000.0
+                    chktime = int(parts[25].split('=')[1])/1000000.0
 
-                    # if bytes not in d['firstbyte']: d['firstbyte'][bytes] = {}
-                    # if second not in d['firstbyte'][bytes]: d['firstbyte'][bytes][second] = []
-                    # d['firstbyte'][bytes][second].append(parts[10].split(',')[5])
-                    if parts[10].split(',')[5] not in d: d[parts[10].split(',')[5]] = {}
-                    #if second not in d[parts[10].split(',')[5]]: d[parts[10].split(',')[5]][second] = []
+                    if bytes not in d['firstbyte']: d['firstbyte'][bytes] = {}
+                    if second not in d['firstbyte'][bytes]: d['firstbyte'][bytes][second] = []
+                    d['firstbyte'][bytes][second].append(fbtime-cmdtime)
 
-                    d[parts[10].split(',')[5]][second] = bytes
-
-
-
-                    # if bytes not in d['lastbyte']: d['lastbyte'][bytes] = {}
-                    # if second not in d['lastbyte'][bytes]: d['lastbyte'][bytes][second] = []
-
-                    # d['lastbyte'][bytes][second].append(parts[10].split(',')[5])
-
-                    #print(parts[10].split(',')[5])
+                    if bytes not in d['lastbyte']: d['lastbyte'][bytes] = {}
+                    if second not in d['lastbyte'][bytes]: d['lastbyte'][bytes][second] = []
+                    d['lastbyte'][bytes][second].append(lbtime-cmdtime)
 
                 elif 'transfer-error' in parts[6]:
                     error_count += 1
-                    # code = parts[10].strip('()').split(',')[8].split('=')[1]
-                    # if code not in d['errors']: d['errors'][code] = {}
-                    # if second not in d['errors'][code]: d['errors'][code][second] = []
-                    # d['errors'][code][second].append(bytes)
+                    code = parts[10].strip('()').split(',')[8].split('=')[1]
+                    if code not in d['errors']: d['errors'][code] = {}
+                    if second not in d['errors'][code]: d['errors'][code][second] = []
+                    d['errors'][code][second].append(bytes)
         except: continue # data format error
 
     source_cleanup(filename, source, xzproc)
