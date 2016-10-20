@@ -77,6 +77,7 @@ static void _tgenmain_cleanup(gint status, gpointer arg) {
 static gint _tgenmain_run(gint argc, gchar *argv[]) {
     tgenLogFunc = _tgenmain_log;
 
+    srand(g_get_monotonic_time());
     /* construct our unique log domain */
     gchar hostname[128];
     memset(hostname, 0, 128);

@@ -36,7 +36,7 @@ typedef struct _TGenActionTransferData {
     TGenTransferType type;
     TGenTransportProtocol protocol;
     guint64 size;
-    guint64 sendRate;
+    gint64 sendRate;
     guint64 timeoutNanos;
     gboolean timeoutIsSet;
     guint64 stalloutNanos;
@@ -664,7 +664,7 @@ TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* prot
         return NULL;
     }
 
-    guint64 sendRate = 0;
+    gint64 sendRate = 0;
     if (!rateStr || !g_ascii_strncasecmp(rateStr, "\0", (gsize) 1)) {
         // DREW this is optional
     } else {
@@ -787,7 +787,7 @@ GLogLevelFlags tgenaction_getLogLevel(TGenAction* action) {
 }
 
 void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* typeOut,
-        TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut, guint64* sendRateOut) {
+        TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut, gint64* sendRateOut) {
     TGEN_ASSERT(action);
     g_assert(action->data && action->type == TGEN_ACTION_TRANSFER);
 

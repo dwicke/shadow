@@ -661,9 +661,11 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
 
             // pause before sending (in microsends) DREW
             gint64 rateParameter = transfer->sendRate; // this is .01 seconds or 10000 microseconds
-            gint64 timeToNextWrite = -logf(1.0f - (float) random() / (RAND_MAX + 1)) / rateParameter;
-            gint64 endTime = g_get_monotonic_time() + timeToNextWrite;
-            while(g_get_monotonic_time() < endTime) {} // busy wait
+            if (rateParameter > 0) {
+                gint64 timeToNextWrite = -logf(1.0f - (float) random() / (RAND_MAX + 1)) / rateParameter;
+                gint64 endTime = g_get_monotonic_time() + timeToNextWrite;
+                while(g_get_monotonic_time() < endTime) {} // busy wait
+            }
 
             transfer->bytes.payloadWrite += _tgentransfer_flushOut(transfer);
 

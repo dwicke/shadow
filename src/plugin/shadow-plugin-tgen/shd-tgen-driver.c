@@ -216,7 +216,7 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
 
     guint64 size = 0;
     TGenTransferType type = 0;
-    guint64 sendRate = 0;
+    gint64 sendRate = 0;
     /* this will only update timeout if there was a non-default timeout set for this transfer */
     tgenaction_getTransferParameters(action, &type, NULL, &size, &timeout, &stallout, &sendRate);
 

@@ -40,7 +40,7 @@ guint64 tgenaction_getDefaultStalloutMillis(TGenAction* action);
 guint64 tgenaction_getHeartbeatPeriodMillis(TGenAction* action);
 GLogLevelFlags tgenaction_getLogLevel(TGenAction* action);
 void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* typeOut,
-        TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut);
+        TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut, gint64* sendRateOut);
 TGenPool* tgenaction_getPeers(TGenAction* action);
 
 guint64 tgenaction_getEndTimeMillis(TGenAction* action);
