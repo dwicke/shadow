@@ -8,6 +8,11 @@
 
 #include "shd-tgen.h"
 
+struct _ForwardPeer {
+    gchar* peer;
+    gint time;
+}
+
 struct _TGenDriver {
     /* our graphml dependency graph */
     TGenGraph* actionGraph;
@@ -38,6 +43,8 @@ struct _TGenDriver {
     gsize totalBytesRead;
     gsize totalBytesWritten;
     const gchar* peer;
+
+    GQueue *forwardPeers;// the queue of ForwardPeer 
 
     gint refcount;
     guint magic;
@@ -179,14 +186,31 @@ static void _tgendriver_onNewPeer(TGenDriver* driver, gint socketD, TGenPeer* pe
     tgentransport_unref(transport);
 }
 
+void tgendriver_getForwardPeers(TGenDriver* driver) {
+
+}
+
 static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action) {
     TGEN_ASSERT(driver);
 
     /* the peer list of the transfer takes priority over the general start peer list
      * we must have a list of peers to transfer to one of them */
+
     TGenPool* peers = tgenaction_getPeers(action);
+
+    
     if (!peers) {
         peers = tgenaction_getPeers(driver->startAction);
+    }
+
+    if (!peers) {
+        // check to see if there are peers stored here due to this being a processing server
+        peers = tgendriver_getForwardPeers(driver);
+        if (!peers) {
+            // then we do not have any peers to send to because we are a processing server no one has sent us anything to forward
+            _tgendriver_continueNextActions(driver, action);
+            return;
+        }
     }
 
     if(!peers) {
@@ -369,7 +393,7 @@ static void _tgendriver_continueNextActions(TGenDriver* driver, TGenAction* acti
 
     GQueue* nextActions = tgengraph_getNextActions(driver->actionGraph, action);
     g_assert(nextActions);
-
+ 
     while(g_queue_get_length(nextActions) > 0) {
         _tgendriver_processAction(driver, g_queue_pop_head(nextActions));
     }

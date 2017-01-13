@@ -624,6 +624,12 @@ TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* prot
         type = TGEN_TYPE_GET;
     } else if (!g_ascii_strcasecmp(typeStr, "put")) {
         type = TGEN_TYPE_PUT;
+    } else if (!g_ascii_strcasecmp(typeStr, "forward")) {
+        type = TGEN_TYPE_FORWARD;
+    } else if (!g_ascii_strcasecmp(typeStr, "forwardserve")) {
+        type = TGEN_TYPE_FORWARD_SERVE;
+    } else if (!g_ascii_strcasecmp(typeStr, "forwardreturn")) {
+        type = TGEN_TYPE_FORWARD_RETURN;
     } else {
         *error = g_error_new(G_MARKUP_ERROR, G_MARKUP_ERROR_UNKNOWN_ATTRIBUTE,
                 "transfer action has unknown value '%s' for 'type' attribute",

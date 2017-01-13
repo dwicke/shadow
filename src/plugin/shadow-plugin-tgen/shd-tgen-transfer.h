@@ -6,7 +6,7 @@
 #define SHD_TGEN_TRANSFER_H_
 
 typedef enum _TGenTransferType {
-    TGEN_TYPE_NONE, TGEN_TYPE_GET, TGEN_TYPE_PUT
+    TGEN_TYPE_NONE, TGEN_TYPE_GET, TGEN_TYPE_PUT, TGEN_TYPE_FORWARD, TGEN_TYPE_FORWARD_SERVE, TGEN_TYPE_FORWARD_RETURN
 } TGenTransferType;
 
 typedef struct _TGenTransfer TGenTransfer;

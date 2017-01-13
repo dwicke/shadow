@@ -42,6 +42,7 @@ struct _TGenTransfer {
     gchar* id; // the unique vertex id from the graph
     gsize count; // global transfer count
     TGenTransferType type;
+    gboolean isForward; // we use this so that we can continue to use the put and get style comm
     gsize size;
     gboolean isCommander;
     gchar* hostname;
@@ -100,6 +101,9 @@ static const gchar* _tgentransfer_typeToString(TGenTransfer* transfer) {
         }
         case TGEN_TYPE_PUT: {
             return "PUT";
+        }
+        case TGEN_TYPE_FORWARD: {
+            return "FOR";
         }
         case TGEN_TYPE_NONE:
         default: {
@@ -339,6 +343,11 @@ static void _tgentransfer_readCommand(TGenTransfer* transfer) {
             } else if(!g_ascii_strncasecmp(parts[3], "PUT", 3)) {
                 /* they want to PUT, so we will GET from them */
                 transfer->type = TGEN_TYPE_GET;
+            } else if(!g_ascii_strncasecmp(parts[3], "FOR", 3)) {
+                /* they want to FOR, so we will GET from them */
+                transfer->type = TGEN_TYPE_GET;
+                // so we are the server and the client wants to send a FOR command
+                // 
             } else {
                 tgen_critical("error parsing command type '%s'", parts[3]);
                 hasError = TRUE;
@@ -457,7 +466,8 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
                 if(transfer->bytes.payloadRead == 0) {
                     transfer->time.firstPayloadByte = g_get_monotonic_time();
                 }
-
+                // buffer[65535] = '\0';
+                // tgen_info("payload of the transfer is = %s", buffer)
                 transfer->bytes.payloadRead += bytes;
                 transfer->bytes.totalRead += bytes;
                 g_checksum_update(transfer->payloadChecksum, buffer, bytes);
@@ -599,7 +609,7 @@ static gsize _tgentransfer_flushOut(TGenTransfer* transfer) {
 
 static void _tgentransfer_writeCommand(TGenTransfer* transfer) {
     TGEN_ASSERT(transfer);
-
+ 
     /* buffer the command if we have not done that yet */
     if(!transfer->writeBuffer) {
         transfer->writeBuffer = g_string_new(NULL);
@@ -640,6 +650,7 @@ static void _tgentransfer_writeResponse(TGenTransfer* transfer) {
     }
 }
 
+
 static void _tgentransfer_writePayload(TGenTransfer* transfer) {
     TGEN_ASSERT(transfer);
 
@@ -660,9 +671,10 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
                     (gssize)transfer->writeBuffer->len);
 
             // pause before sending (in microsends) DREW
-            gint64 rateParameter = transfer->sendRate; // this is .01 seconds or 10000 microseconds
-            if (rateParameter > 0) {
-                gint64 timeToNextWrite = -logf(1.0f - (float) random() / (RAND_MAX + 1)) / rateParameter;
+            if (transfer->sendRate > 0) {
+                // pick a random rate between .001s and 1s
+                int lambdarate =  (1000000 - 1000 +1)*(double)rand()/RAND_MAX + 1000; // this is .01 seconds or 10000 microseconds
+                gint64 timeToNextWrite = -logf(1.0f - (float) random() / (RAND_MAX + 1)) / lambdarate;
                 gint64 endTime = g_get_monotonic_time() + timeToNextWrite;
                 while(g_get_monotonic_time() < endTime) {} // busy wait
             }
@@ -948,6 +960,7 @@ gboolean tgentransfer_onCheckTimeout(TGenTransfer* transfer, gint descriptor) {
         return FALSE;
     }
 }
+
 
 TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType type, gsize size, guint64 timeout, guint64 stallout,
         TGenTransport* transport, TGenTransfer_notifyCompleteFunc notify,
