@@ -23,5 +23,7 @@ gint tgendriver_getEpollDescriptor(TGenDriver* driver);
 // this is for processing servers to pick the server to forward the message to
 TGenPool* tgendriver_getForwardPeer(TGenDriver* driver);
 
+void tgendriver_setPayload(TGenDriver* driver, GString *peer, gint64 time);
+void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time);
 
 #endif /* SHD_TGEN_DRIVER_H_ */

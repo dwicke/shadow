@@ -489,9 +489,8 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
             } else if(bytes > 0) {
                 if(transfer->bytes.payloadRead == 0) {
                     transfer->time.firstPayloadByte = g_get_monotonic_time();
-                    // if I'm a foward server and i'm getting data from a server that is requesting the message to be
-                    // forwarded then print it out
-                    if (transfer->myType == TGEN_TYPE_FORWARD_SERVE && transfer->origTransType == TGEN_TYPE_FORWARD)
+                    // If i am a return server and I am getting data from a forward server then extract from the payload who I am to send data to
+                    if (transfer->myType == TGEN_TYPE_FORWARD_RETURN && transfer->origTransType == TGEN_TYPE_FORWARD_SERVE)
                     {
                         GString *gbuf = g_string_new(NULL);
                         int i = 0;
@@ -499,14 +498,29 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
                             g_string_append_c(gbuf, buffer[i]);
                             i++;
                         }
-                        
+
                         tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
+                        TGenDriver *dr = transfer->data1;
+                        tgendriver_setForwardPeer(dr, gbuf, g_get_monotonic_time());
                         
+                    }
+                    else if (transfer->myType == TGEN_TYPE_FORWARD_SERVE && transfer->origTransType == TGEN_TYPE_FORWARD) {
+                        GString *gbuf = g_string_new(NULL);
+                        int i = 0;
+                        while (i < bytes && buffer[i] != ' ') {
+                            g_string_append_c(gbuf, buffer[i]);
+                            i++;
+                        }
+                        tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
+                        // This then must be a payload for the forwarding server to send to one of the processing servers
+                        TGenDriver *dr = transfer->data1;
+                        tgendriver_setPayload(dr, gbuf, g_get_monotonic_time());
+
                     }
                 }
                 // buffer[65535] = '\0';
                 // tgen_info("payload of the transfer is = %s", buffer)
-
+                // 
 
                 transfer->bytes.payloadRead += bytes;
                 transfer->bytes.totalRead += bytes;

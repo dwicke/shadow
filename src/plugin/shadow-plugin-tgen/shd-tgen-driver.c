@@ -9,8 +9,8 @@
 #include "shd-tgen.h"
 
 struct _ForwardPeer {
-    gchar* peer;
-    gint time;
+    GString* peer; // the peer
+    gint64 time; // time the message was received
 };
 
 struct _TGenDriver {
@@ -45,7 +45,8 @@ struct _TGenDriver {
     const gchar* peer;
 
 
-    GQueue *forwardPeers;// the queue of ForwardPeer 
+    GQueue *forwardPeers;// the queue of ForwardPeer
+    GQueue *forwardPayloads; // the queue of payloads to go to the processing servers
 
     gint refcount;
     guint magic;
@@ -76,6 +77,11 @@ static void _tgendriver_onTransferComplete(TGenDriver* driver, TGenAction* actio
             }
             case TGEN_TYPE_FORWARD_SERVE: {
                 tgen_message("Transfer type = forward serve");
+                // lets get who it was from...???
+                ForwardPeer *fp = g_queue_peek_tail(driver->forwardPayloads);
+                if(fp != NULL){
+                    tgen_message("I have a payload containing %s at time %d", fp->peer->str, fp->time);
+                }
                 break;
             }
             case TGEN_TYPE_FORWARD_RETURN: {
@@ -213,6 +219,20 @@ static void _tgendriver_onNewPeer(TGenDriver* driver, gint socketD, TGenPeer* pe
 
 TGenPool* tgendriver_getForwardPeers(TGenDriver* driver) {
     return NULL; // here I will eventually 
+}
+
+void tgendriver_setPayload(TGenDriver* driver, GString *peer, gint64 time) {
+    ForwardPeer *fpeer = g_new0(ForwardPeer, 1);
+    fpeer->peer = peer;
+    fpeer->time = time;
+    g_queue_push_tail(driver->forwardPayloads,fpeer);
+}
+
+void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time) {
+    ForwardPeer *fpeer = g_new0(ForwardPeer, 1);
+    fpeer->peer = peer;
+    fpeer->time = time;
+    g_queue_push_tail(driver->forwardPeers,fpeer);
 }
 
 static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action) {
@@ -449,6 +469,12 @@ static void _tgendriver_free(TGenDriver* driver) {
     if(driver->actionGraph) {
         tgengraph_unref(driver->actionGraph);
     }
+    if(driver->forwardPeers) {
+        g_queue_free_full(driver->forwardPeers, g_free);
+    }
+    if(driver->forwardPayloads) {
+        g_queue_free_full(driver->forwardPayloads, g_free);
+    }
 
     driver->magic = 0;
     g_free(driver);
@@ -578,6 +604,9 @@ TGenDriver* tgendriver_new(TGenGraph* graph) {
     tgengraph_ref(graph);
     driver->actionGraph = graph;
     driver->startAction = tgengraph_getStartAction(graph);
+
+    driver->forwardPeers = g_queue_new();
+    driver->forwardPayloads = g_queue_new();
 
     /* start a heartbeat status message every second */
     if(!_tgendriver_setHeartbeatTimerHelper(driver)) {
