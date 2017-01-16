@@ -26,4 +26,6 @@ TGenPool* tgendriver_getForwardPeer(TGenDriver* driver);
 void tgendriver_setPayload(TGenDriver* driver, GString *peer, gint64 time);
 void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time);
 
+GString* tgendriver_getPayload(TGenDriver* driver);
+
 #endif /* SHD_TGEN_DRIVER_H_ */

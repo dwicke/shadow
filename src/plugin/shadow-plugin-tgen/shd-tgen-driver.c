@@ -217,7 +217,39 @@ static void _tgendriver_onNewPeer(TGenDriver* driver, gint socketD, TGenPeer* pe
     tgentransport_unref(transport);
 }
 
-TGenPool* tgendriver_getForwardPeers(TGenDriver* driver) {
+GString* tgen_getPayload(TGenDriver* driver) {
+
+    ForwardPeer *fp = g_queue_pop_tail(driver->forwardPayloads);
+    GString *payload = g_string_new(fp->peer->str);
+    g_free(fp);
+    return payload;
+}
+
+TGenPeer* tgendriver_getForwardPeers(TGenDriver* driver, TGenAction* action) {
+    gint64 curTime = g_get_monotonic_time();
+
+    ForwardPeer *fpeer = g_queue_peek_tail(driver->forwardPeers);
+    if(fpeer) {
+        // if we have waited at least 2 seconds
+        if (curTime - fpeer->time >= 2000000)
+        {
+
+            // then I will add this peer
+            TGenPool* peers = tgenaction_getPeers(action);
+            TGenPeer *peer;
+            int i = 0;
+            while(peer = tgenpool_getIndex(peers, i)) {
+                if(g_ascii_strncasecmp(tgenpeer_getName(peer), fpeer->peer->str, fpeer->peer->len) == 0)
+                {
+                    // then I'm done with this one.
+                    g_free(g_queue_pop_tail(driver->forwardPeers));
+                    return peer;
+                }
+                i++;
+            }
+        }
+    }
+
     return NULL; // here I will eventually 
 }
 
@@ -241,29 +273,45 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
     /* the peer list of the transfer takes priority over the general start peer list
      * we must have a list of peers to transfer to one of them */
 
-    TGenPool* peers = tgenaction_getPeers(action);
 
+    TGenPool* peers = tgenaction_getPeers(action);
+    
     
     if (!peers) {
         peers = tgenaction_getPeers(driver->startAction);
     }
 
-    if (!peers) {
-        // check to see if there are peers stored here due to this being a processing server
-        peers = tgendriver_getForwardPeers(driver);
-        if (!peers) {
-            // then we do not have any peers to send to because we are a processing server no one has sent us anything to forward
-            _tgendriver_continueNextActions(driver, action);
-            return;
-        }
-    }
+    
 
-    if(!peers) {
+    if(!peers && tgenaction_getTransferType(action) != TGEN_TYPE_FORWARD_RETURN) {
         tgen_error("missing peers for transfer action; note that peers must be specified in "
                 "either the start action, or in *every* transfer action");
     }
 
     TGenPeer* peer = tgenpool_getRandom(peers);
+
+    if (tgenaction_getTransferType(action) == TGEN_TYPE_FORWARD_RETURN) {
+        // So if I'm processor node return the data back to the sender
+        peer = tgendriver_getForwardPeers(driver, action);
+        if (peer == NULL) {
+            _tgendriver_continueNextActions(driver, action);
+            return;
+        }
+    }
+
+    if (tgenaction_getTransferType(action) == TGEN_TYPE_FORWARD_SERVE) {
+        // so if I am serving the data then I will have to provide the data at the right time
+        ForwardPeer *fpeer = g_queue_peek_tail(driver->forwardPayloads);
+        if(fpeer) {
+            // if we have waited at least 2 seconds
+            if (g_get_monotonic_time() - fpeer->time < 2000000)
+            {
+                _tgendriver_continueNextActions(driver, action);
+                return;
+            }
+        }
+    }
+
     TGenPeer* proxy = tgenaction_getSocksProxy(driver->startAction);
 
     TGenTransport* transport = tgentransport_newActive(proxy, peer,

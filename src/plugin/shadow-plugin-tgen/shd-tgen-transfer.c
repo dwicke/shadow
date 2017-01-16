@@ -738,6 +738,16 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
             } else if (transfer->type == TGEN_TYPE_FORWARD) {
                 // just send blanks
                 transfer->writeBuffer = _tgentransfer_getSpaceString(length);
+            } else if (transfer->type == TGEN_TYPE_FORWARD_SERVE && firstByte) {
+                // we want to transmit a string where we have first the hostname
+                transfer->writeBuffer = g_string_new(NULL);
+                TGenDriver *dr = transfer->data1;
+                GString *hostdata = tgendriver_getPayload(dr);
+                g_string_printf(transfer->writeBuffer, "%s", hostdata->str);
+                gsize sub = length - transfer->writeBuffer->len;
+                g_string_printf(transfer->writeBuffer, "%s%s", hostdata->str, _tgentransfer_getSpaceString(sub)->str);
+                tgen_message("transmitted message = %s",transfer->writeBuffer->str);
+
             } else {
                 transfer->writeBuffer = _tgentransfer_getRandomString(length);
             }
