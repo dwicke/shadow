@@ -18,7 +18,7 @@ typedef struct _TGenAction TGenAction;
 
 TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeoutStr,
         const gchar* stalloutStr, const gchar* heartbeatStr, const gchar* loglevelStr, const gchar* serverPortStr,
-        const gchar* peersStr, const gchar* socksProxyStr, GError** error);
+        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, GError** error);
 TGenAction* tgenaction_newEndAction(const gchar* timeStr, const gchar* countStr,
         const gchar* sizeStr, GError** error);
 TGenAction* tgenaction_newPauseAction(const gchar* timeStr, glong totalIncoming, GError** error);
@@ -32,6 +32,7 @@ void tgenaction_setKey(TGenAction* action, gpointer key);
 gpointer tgenaction_getKey(TGenAction* action);
 
 TGenActionType tgenaction_getType(TGenAction* action);
+TGenTransferType tgenaction_getTransferType(TGenAction* action);
 guint16 tgenaction_getServerPort(TGenAction* action);
 TGenPeer* tgenaction_getSocksProxy(TGenAction* action);
 guint64 tgenaction_getStartTimeMillis(TGenAction* action);
@@ -39,6 +40,7 @@ guint64 tgenaction_getDefaultTimeoutMillis(TGenAction* action);
 guint64 tgenaction_getDefaultStalloutMillis(TGenAction* action);
 guint64 tgenaction_getHeartbeatPeriodMillis(TGenAction* action);
 GLogLevelFlags tgenaction_getLogLevel(TGenAction* action);
+
 void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* typeOut,
         TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut, gint64* sendRateOut);
 TGenPool* tgenaction_getPeers(TGenAction* action);

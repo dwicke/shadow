@@ -11,7 +11,7 @@
 struct _ForwardPeer {
     gchar* peer;
     gint time;
-}
+};
 
 struct _TGenDriver {
     /* our graphml dependency graph */
@@ -44,6 +44,7 @@ struct _TGenDriver {
     gsize totalBytesWritten;
     const gchar* peer;
 
+
     GQueue *forwardPeers;// the queue of ForwardPeer 
 
     gint refcount;
@@ -65,6 +66,30 @@ static void _tgendriver_onTransferComplete(TGenDriver* driver, TGenAction* actio
     if(wasSuccess) {
         driver->heartbeatTransfersCompleted++;
         driver->totalTransfersCompleted++;
+
+        // Here I can check if I just finsihed a particular type of send or recv
+        
+        switch(tgenaction_getTransferType(driver->startAction)) {
+            case TGEN_TYPE_FORWARD: {
+                tgen_message("Transfer type = forward");
+                break;
+            }
+            case TGEN_TYPE_FORWARD_SERVE: {
+                tgen_message("Transfer type = forward serve");
+                break;
+            }
+            case TGEN_TYPE_FORWARD_RETURN: {
+                tgen_message("Transfer type = forward return");
+                break;
+            }
+            case TGEN_TYPE_NONE:
+            default: {
+                tgen_message("Transfer type = nothing");
+            }
+        }
+            
+        
+
     } else {
         driver->heartbeatTransferErrors++;
         driver->totalTransferErrors++;
@@ -161,7 +186,7 @@ static void _tgendriver_onNewPeer(TGenDriver* driver, gint socketD, TGenPeer* pe
 
     /* a new transfer will be coming in on this transport */
     gsize count = ++(driver->globalTransferCounter);
-    TGenTransfer* transfer = tgentransfer_new(NULL, count, TGEN_TYPE_NONE, 0, defaultTimeout, defaultStallout, transport,
+    TGenTransfer* transfer = tgentransfer_new(NULL, count, TGEN_TYPE_NONE, tgenaction_getTransferType(driver->startAction), 0, defaultTimeout, defaultStallout, transport,
             (TGenTransfer_notifyCompleteFunc)_tgendriver_onTransferComplete, driver, NULL,
             (GDestroyNotify)tgendriver_unref, NULL, 0);
 
@@ -186,8 +211,8 @@ static void _tgendriver_onNewPeer(TGenDriver* driver, gint socketD, TGenPeer* pe
     tgentransport_unref(transport);
 }
 
-void tgendriver_getForwardPeers(TGenDriver* driver) {
-
+TGenPool* tgendriver_getForwardPeers(TGenDriver* driver) {
+    return NULL; // here I will eventually 
 }
 
 static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action) {
@@ -250,7 +275,7 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
 
     /* a new transfer will be coming in on this transport. the transfer
      * takes control of the transport pointer reference. */
-    TGenTransfer* transfer = tgentransfer_new(idStr, count, type, (gsize)size, timeout, stallout, transport,
+    TGenTransfer* transfer = tgentransfer_new(idStr, count, type, tgenaction_getTransferType(driver->startAction), (gsize)size, timeout, stallout, transport,
             (TGenTransfer_notifyCompleteFunc)_tgendriver_onTransferComplete, driver, action,
             (GDestroyNotify)tgendriver_unref, (GDestroyNotify)tgenaction_unref, sendRate);
 

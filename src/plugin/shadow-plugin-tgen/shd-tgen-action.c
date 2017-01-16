@@ -18,6 +18,7 @@ typedef struct _TGenActionStartData {
     guint16 serverport;
     TGenPeer* socksproxy;
     TGenPool* peers;
+    TGenTransferType type;
 } TGenActionStartData;
 
 typedef struct _TGenActionEndData {
@@ -440,7 +441,7 @@ void tgenaction_unref(TGenAction* action) {
 
 TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeoutStr,
         const gchar* stalloutStr, const gchar* heartbeatStr, const gchar* loglevelStr, const gchar* serverPortStr,
-        const gchar* peersStr, const gchar* socksProxyStr, GError** error) {
+        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, GError** error) {
     g_assert(error);
 
     /* a serverport is required */
@@ -514,6 +515,18 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
         }
     }
 
+
+
+    /* the type of graph this is, used for forward */
+    TGenTransferType type = TGEN_TYPE_NONE;
+    if (!g_ascii_strcasecmp(typeStr, "forward")) {
+        type = TGEN_TYPE_FORWARD;
+    } else if (!g_ascii_strcasecmp(typeStr, "forwardserve")) {
+        type = TGEN_TYPE_FORWARD_SERVE;
+    } else if (!g_ascii_strcasecmp(typeStr, "forwardreturn")) {
+        type = TGEN_TYPE_FORWARD_RETURN;
+    }
+
     /* if we get here, we have what we need and validated it */
     TGenAction* action = g_new0(TGenAction, 1);
     action->magic = TGEN_MAGIC;
@@ -522,7 +535,7 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
     action->type = TGEN_ACTION_START;
 
     TGenActionStartData* data = g_new0(TGenActionStartData, 1);
-
+    data->type = type;
     data->timeNanos = timedelayNanos;
     data->timeoutNanos = defaultTimeoutNanos;
     data->stalloutNanos = defaultStalloutNanos;
@@ -748,6 +761,12 @@ gpointer tgenaction_getKey(TGenAction* action) {
 TGenActionType tgenaction_getType(TGenAction* action) {
     TGEN_ASSERT(action);
     return action->type;
+}
+
+TGenTransferType tgenaction_getTransferType(TGenAction* action) {
+    TGEN_ASSERT(action);
+    g_assert(action->data && action->type == TGEN_ACTION_START);
+    return ((TGenActionStartData*)action->data)->type;
 }
 
 guint16 tgenaction_getServerPort(TGenAction* action) {

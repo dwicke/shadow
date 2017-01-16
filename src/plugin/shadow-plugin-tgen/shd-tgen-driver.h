@@ -21,7 +21,7 @@ gboolean tgendriver_hasEnded(TGenDriver* driver);
 gint tgendriver_getEpollDescriptor(TGenDriver* driver);
 
 // this is for processing servers to pick the server to forward the message to
-void tgendriver_getForwardPeer(TGenDriver* driver);
+TGenPool* tgendriver_getForwardPeer(TGenDriver* driver);
 
 
 #endif /* SHD_TGEN_DRIVER_H_ */

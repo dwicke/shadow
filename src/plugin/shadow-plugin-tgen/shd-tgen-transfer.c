@@ -42,6 +42,7 @@ struct _TGenTransfer {
     gchar* id; // the unique vertex id from the graph
     gsize count; // global transfer count
     TGenTransferType type;
+    TGenTransferType origTransType; // i change type to a get but i still need to know that it was a forward
     gboolean isForward; // we use this so that we can continue to use the put and get style comm
     gsize size;
     gboolean isCommander;
@@ -49,6 +50,8 @@ struct _TGenTransfer {
     gsize remoteCount;
     gchar* remoteName;
     gint64 sendRate; // DREW
+
+    TGenTransferType myType; // my node's type from the start node in the action graph
 
     /* socket communication layer and buffers */
     TGenTransport* transport;
@@ -104,6 +107,12 @@ static const gchar* _tgentransfer_typeToString(TGenTransfer* transfer) {
         }
         case TGEN_TYPE_FORWARD: {
             return "FOR";
+        }
+        case TGEN_TYPE_FORWARD_SERVE: {
+            return "FOS";
+        }
+        case TGEN_TYPE_FORWARD_RETURN: {
+            return "FRE";
         }
         case TGEN_TYPE_NONE:
         default: {
@@ -338,14 +347,29 @@ static void _tgentransfer_readCommand(TGenTransfer* transfer) {
             if(!g_ascii_strncasecmp(parts[3], "GET", 3)) {
                 /* they are trying to GET, then we need to PUT to them */
                 transfer->type = TGEN_TYPE_PUT;
+                transfer->origTransType = TGEN_TYPE_GET;
                 /* we read command, but now need to write payload */
                 transfer->events |= TGEN_EVENT_WRITE;
             } else if(!g_ascii_strncasecmp(parts[3], "PUT", 3)) {
                 /* they want to PUT, so we will GET from them */
                 transfer->type = TGEN_TYPE_GET;
+                transfer->origTransType = TGEN_TYPE_PUT;
             } else if(!g_ascii_strncasecmp(parts[3], "FOR", 3)) {
                 /* they want to FOR, so we will GET from them */
                 transfer->type = TGEN_TYPE_GET;
+                transfer->origTransType = TGEN_TYPE_FORWARD;
+                // so we are the server and the client wants to send a FOR command
+                // 
+            } else if(!g_ascii_strncasecmp(parts[3], "FOS", 3)) {
+                /* they want to FOS, so we will GET from them */
+                // we are the 
+                transfer->type = TGEN_TYPE_GET;
+                transfer->origTransType = TGEN_TYPE_FORWARD_SERVE;
+                 
+            } else if(!g_ascii_strncasecmp(parts[3], "FRE", 3)) {
+                /* they want to FOR, so we will GET from them */
+                transfer->type = TGEN_TYPE_GET;
+                transfer->origTransType = TGEN_TYPE_FORWARD_RETURN;
                 // so we are the server and the client wants to send a FOR command
                 // 
             } else {
@@ -465,9 +489,25 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
             } else if(bytes > 0) {
                 if(transfer->bytes.payloadRead == 0) {
                     transfer->time.firstPayloadByte = g_get_monotonic_time();
+                    // if I'm a foward server and i'm getting data from a server that is requesting the message to be
+                    // forwarded then print it out
+                    if (transfer->myType == TGEN_TYPE_FORWARD_SERVE && transfer->origTransType == TGEN_TYPE_FORWARD)
+                    {
+                        GString *gbuf = g_string_new(NULL);
+                        int i = 0;
+                        while (i < bytes && buffer[i] != ' ') {
+                            g_string_append_c(gbuf, buffer[i]);
+                            i++;
+                        }
+                        
+                        tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
+                        
+                    }
                 }
                 // buffer[65535] = '\0';
                 // tgen_info("payload of the transfer is = %s", buffer)
+
+
                 transfer->bytes.payloadRead += bytes;
                 transfer->bytes.totalRead += bytes;
                 g_checksum_update(transfer->payloadChecksum, buffer, bytes);
@@ -571,6 +611,14 @@ static GString* _tgentransfer_getRandomString(gsize size) {
     return buffer;
 }
 
+static GString* _tgentransfer_getSpaceString(gsize size) {
+    GString* buffer = g_string_new_len(NULL, (gssize)size);
+    for(gint i = 0; i < size; i++) {
+        g_string_append_c(buffer, (gchar)(' '));
+    }
+    return buffer;
+}
+
 static gsize _tgentransfer_flushOut(TGenTransfer* transfer) {
     TGEN_ASSERT(transfer);
 
@@ -650,7 +698,6 @@ static void _tgentransfer_writeResponse(TGenTransfer* transfer) {
     }
 }
 
-
 static void _tgentransfer_writePayload(TGenTransfer* transfer) {
     TGEN_ASSERT(transfer);
 
@@ -666,7 +713,20 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
 
         if(length > 0) {
             /* we need to send more payload */
-            transfer->writeBuffer = _tgentransfer_getRandomString(length);
+            if (transfer->type == TGEN_TYPE_FORWARD && firstByte) {
+                // we want to transmit a string where we have first the hostname
+                transfer->writeBuffer = g_string_new(NULL);
+                g_string_printf(transfer->writeBuffer, "%s", transfer->hostname);
+                gsize sub = length - transfer->writeBuffer->len;
+                g_string_printf(transfer->writeBuffer, "%s%s", transfer->hostname, _tgentransfer_getSpaceString(sub)->str);
+                tgen_message("transmitted message = %s",transfer->writeBuffer->str);
+
+            } else if (transfer->type == TGEN_TYPE_FORWARD) {
+                // just send blanks
+                transfer->writeBuffer = _tgentransfer_getSpaceString(length);
+            } else {
+                transfer->writeBuffer = _tgentransfer_getRandomString(length);
+            }
             g_checksum_update(transfer->payloadChecksum, (guchar*)transfer->writeBuffer->str,
                     (gssize)transfer->writeBuffer->len);
 
@@ -734,11 +794,17 @@ static void _tgentransfer_onWritable(TGenTransfer* transfer) {
     }
 
     /* check if we are responsible for writing payload bytes */
-    if(transfer->type == TGEN_TYPE_PUT && transfer->state == TGEN_XFER_PAYLOAD) {
+    if((transfer->type == TGEN_TYPE_PUT || 
+        transfer->type == TGEN_TYPE_FORWARD || 
+        transfer->type == TGEN_TYPE_FORWARD_SERVE || 
+        transfer->type == TGEN_TYPE_FORWARD_RETURN) && transfer->state == TGEN_XFER_PAYLOAD) {
         _tgentransfer_writePayload(transfer);
     }
 
-    if(transfer->type == TGEN_TYPE_PUT && transfer->state == TGEN_XFER_CHECKSUM) {
+    if((transfer->type == TGEN_TYPE_PUT || 
+        transfer->type == TGEN_TYPE_FORWARD || 
+        transfer->type == TGEN_TYPE_FORWARD_SERVE || 
+        transfer->type == TGEN_TYPE_FORWARD_RETURN) && transfer->state == TGEN_XFER_CHECKSUM) {
         _tgentransfer_writeChecksum(transfer);
     }
 
@@ -962,7 +1028,7 @@ gboolean tgentransfer_onCheckTimeout(TGenTransfer* transfer, gint descriptor) {
 }
 
 
-TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType type, gsize size, guint64 timeout, guint64 stallout,
+TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType type, TGenTransferType myType, gsize size, guint64 timeout, guint64 stallout,
         TGenTransport* transport, TGenTransfer_notifyCompleteFunc notify,
         gpointer data1, gpointer data2, GDestroyNotify destructData1, GDestroyNotify destructData2, gint64 sendRate) {
     TGenTransfer* transfer = g_new0(TGenTransfer, 1);
@@ -974,6 +1040,7 @@ TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType
     transfer->data2 = data2;
     transfer->destructData1 = destructData1;
     transfer->destructData2 = destructData2;
+
 
     transfer->time.start = g_get_monotonic_time();
 
@@ -997,6 +1064,7 @@ TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType
         transfer->events |= TGEN_EVENT_WRITE;
     }
 
+    transfer->myType = myType; // DREW this is what the start node was set to the type. (TGEN_TYPE_FORWARD_SERVE, TGEN_TYPE_FORWARD_RETURN)
 
     transfer->payloadChecksum = g_checksum_new(G_CHECKSUM_MD5);
 

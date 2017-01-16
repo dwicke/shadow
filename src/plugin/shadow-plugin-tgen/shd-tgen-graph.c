@@ -228,6 +228,8 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
         igraph_integer_t vertexIndex) {
     TGEN_ASSERT(g);
 
+    const gchar* typeStr = (g->knownAttributes&TGEN_VA_TYPE) ?
+            VAS(g->graph, "type", vertexIndex) : NULL;
     const gchar* timeStr = (g->knownAttributes&TGEN_VA_TIME) ?
             VAS(g->graph, "time", vertexIndex) : NULL;
     const gchar* timeoutStr = (g->knownAttributes&TGEN_VA_TIMEOUT) ?
@@ -259,7 +261,7 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
     }
 
     GError* error = NULL;
-    TGenAction* a = tgenaction_newStartAction(timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, peersStr, socksProxyStr, &error);
+    TGenAction* a = tgenaction_newStartAction(timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, peersStr, socksProxyStr, typeStr, &error);
 
     if(a) {
         _tgengraph_storeAction(g, a, vertexIndex);
