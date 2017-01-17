@@ -55,6 +55,7 @@ struct _TGenDriver {
 /* forward declaration */
 static void _tgendriver_continueNextActions(TGenDriver* driver, TGenAction* action);
 static void _tgendriver_processAction(TGenDriver* driver, TGenAction* action);
+static gboolean _tgendriver_setStartClientTimerHelper(TGenDriver* driver, guint64 timerTime);
 
 static gint64 _tgendriver_getCurrentTimeMillis() {
     return g_get_monotonic_time()/1000;
@@ -140,6 +141,18 @@ static gboolean _tgendriver_onHeartbeat(TGenDriver* driver, gpointer nullData) {
     return FALSE;
 }
 
+static gboolean _tgendriver_onTransferHeartbeat(TGenDriver* driver, gpointer nullData) {
+    TGEN_ASSERT(driver);
+
+    tgen_message("Going to do the heartbeat");
+    _tgendriver_processAction(driver, driver->startAction);
+    tgenio_checkTimeouts(driver->io);
+    /* even if the client ended, we keep serving requests.
+     * we are still running and the heartbeat timer still owns a driver ref.
+     * do not cancel the timer */
+    return FALSE;
+}
+
 static gboolean _tgendriver_onStartClientTimerExpired(TGenDriver* driver, gpointer nullData) {
     TGEN_ASSERT(driver);
 
@@ -217,7 +230,7 @@ static void _tgendriver_onNewPeer(TGenDriver* driver, gint socketD, TGenPeer* pe
     tgentransport_unref(transport);
 }
 
-GString* tgen_getPayload(TGenDriver* driver) {
+GString* tgendriver_getPayload(TGenDriver* driver) {
 
     ForwardPeer *fp = g_queue_pop_tail(driver->forwardPayloads);
     GString *payload = g_string_new(fp->peer->str);
@@ -228,7 +241,7 @@ GString* tgen_getPayload(TGenDriver* driver) {
 TGenPeer* tgendriver_getForwardPeers(TGenDriver* driver, TGenAction* action) {
     gint64 curTime = g_get_monotonic_time();
 
-    ForwardPeer *fpeer = g_queue_peek_tail(driver->forwardPeers);
+    ForwardPeer *fpeer = g_queue_peek_head(driver->forwardPeers);
     if(fpeer) {
         // if we have waited at least 2 seconds
         if (curTime - fpeer->time >= 2000000)
@@ -242,7 +255,7 @@ TGenPeer* tgendriver_getForwardPeers(TGenDriver* driver, TGenAction* action) {
                 if(g_ascii_strncasecmp(tgenpeer_getName(peer), fpeer->peer->str, fpeer->peer->len) == 0)
                 {
                     // then I'm done with this one.
-                    g_free(g_queue_pop_tail(driver->forwardPeers));
+                    g_free(g_queue_pop_head(driver->forwardPeers));
                     return peer;
                 }
                 i++;
@@ -258,6 +271,8 @@ void tgendriver_setPayload(TGenDriver* driver, GString *peer, gint64 time) {
     fpeer->peer = peer;
     fpeer->time = time;
     g_queue_push_tail(driver->forwardPayloads,fpeer);
+    // I need to also schedule the transfer action!
+    _tgendriver_setStartClientTimerHelper(driver, time);
 }
 
 void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time) {
@@ -265,6 +280,7 @@ void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time) {
     fpeer->peer = peer;
     fpeer->time = time;
     g_queue_push_tail(driver->forwardPeers,fpeer);
+    _tgendriver_setStartClientTimerHelper(driver, time);
 }
 
 static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action) {
@@ -272,7 +288,7 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
 
     /* the peer list of the transfer takes priority over the general start peer list
      * we must have a list of peers to transfer to one of them */
-
+    tgen_message("I am in initiateTransfer");
 
     TGenPool* peers = tgenaction_getPeers(action);
     
@@ -288,29 +304,44 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
                 "either the start action, or in *every* transfer action");
     }
 
+
     TGenPeer* peer = tgenpool_getRandom(peers);
+    tgen_message("I finished trying to get the tgenpool %d", tgenaction_getTransferType(action));
+
 
     if (tgenaction_getTransferType(action) == TGEN_TYPE_FORWARD_RETURN) {
         // So if I'm processor node return the data back to the sender
+        tgen_message("I am a processor node a TGEN_TYPE_FORWARD_RETURN and I am getting the peer");
         peer = tgendriver_getForwardPeers(driver, action);
         if (peer == NULL) {
-            _tgendriver_continueNextActions(driver, action);
+            tgen_message("No peers to forward to");
+            //_tgendriver_continueNextActions(driver, action);
             return;
         }
+        tgen_message("Forwarding to peer: %s", tgenpeer_getName(peer));
     }
+
 
     if (tgenaction_getTransferType(action) == TGEN_TYPE_FORWARD_SERVE) {
         // so if I am serving the data then I will have to provide the data at the right time
-        ForwardPeer *fpeer = g_queue_peek_tail(driver->forwardPayloads);
+        ForwardPeer *fpeer = g_queue_peek_head(driver->forwardPayloads);
         if(fpeer) {
             // if we have waited at least 2 seconds
-            if (g_get_monotonic_time() - fpeer->time < 2000000)
+            if ((g_get_monotonic_time() - fpeer->time) < 2000000)
             {
-                _tgendriver_continueNextActions(driver, action);
+                tgen_message("Payload has not waited long enough started waiting at %d current time is %d", fpeer->time, g_get_monotonic_time());
+                //_tgendriver_continueNextActions(driver, action);
                 return;
             }
+            tgen_message("Forwarding payload %s to %s", fpeer->peer->str, tgenpeer_getName(peer));
+        } else {
+            // if no payloads to send i just keep waiting...
+            //_tgendriver_continueNextActions(driver, action);
+            tgen_message("No payload");
+            return;
         }
     }
+    
 
     TGenPeer* proxy = tgenaction_getSocksProxy(driver->startAction);
 
@@ -454,10 +485,13 @@ static void _tgendriver_processAction(TGenDriver* driver, TGenAction* action) {
     switch(tgenaction_getType(action)) {
         case TGEN_ACTION_START: {
             /* slide through to the next actions */
+            tgen_message("Start Action");
             _tgendriver_continueNextActions(driver, action);
+
             break;
         }
         case TGEN_ACTION_TRANSFER: {
+            tgen_message("Transfer Action");
             _tgendriver_initiateTransfer(driver, action);
             break;
         }
@@ -641,6 +675,36 @@ static gboolean _tgendriver_setHeartbeatTimerHelper(TGenDriver* driver) {
     }
 }
 
+static gboolean _tgendriver_setTransferTimerHelper(TGenDriver* driver) {
+    TGEN_ASSERT(driver);
+
+    guint64 heartbeatPeriod = 1500;  //tgenaction_getHeartbeatPeriodMillis(driver->startAction);
+    if(heartbeatPeriod == 0) {
+        heartbeatPeriod = 1000;
+    }
+
+    /* start the heartbeat as a persistent timer event */
+    TGenTimer* heartbeatTimer = tgentimer_new(heartbeatPeriod, TRUE,
+            (TGenTimer_notifyExpiredFunc)_tgendriver_onTransferHeartbeat, driver, NULL,
+            (GDestroyNotify)tgendriver_unref, NULL);
+
+    if(heartbeatTimer) {
+        /* ref++ the driver since the timer is now holding a reference */
+        tgendriver_ref(driver);
+
+        /* let the IO module handle timer reads, transfer the timer pointer reference */
+        gint timerD = tgentimer_getDescriptor(heartbeatTimer);
+        tgenio_register(driver->io, timerD, (TGenIO_notifyEventFunc)tgentimer_onEvent, NULL,
+                heartbeatTimer, (GDestroyNotify)tgentimer_unref);
+
+        tgen_info("set heartbeat timer using descriptor %i", timerD);
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
+
+
 TGenDriver* tgendriver_new(TGenGraph* graph) {
     /* create the main driver object */
     TGenDriver* driver = g_new0(TGenDriver, 1);
@@ -666,6 +730,15 @@ TGenDriver* tgendriver_new(TGenGraph* graph) {
     if(!_tgendriver_startServerHelper(driver)) {
         tgendriver_unref(driver);
         return NULL;
+    }
+
+    // if I am a forward server or processor I need a persistant 
+    if(tgenaction_getTransferType(driver->startAction) == TGEN_TYPE_FORWARD_RETURN || tgenaction_getTransferType(driver->startAction) == TGEN_TYPE_FORWARD_SERVE)
+    {
+        if(!_tgendriver_setTransferTimerHelper(driver)) {
+            tgendriver_unref(driver);
+            return NULL;
+        }
     }
 
     /* only run the client if we have (non-start) actions we need to process */

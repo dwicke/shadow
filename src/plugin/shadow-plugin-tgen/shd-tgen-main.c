@@ -114,7 +114,7 @@ static gint _tgenmain_run(gint argc, gchar *argv[]) {
         tgen_critical("cannot continue: incorrect argument list format")
         return -1;
     }
-
+    tgen_message("HIIII");
     /* parse the config file */
     TGenGraph* graph = tgengraph_new(argv[1]);
     if (!graph) {

@@ -519,12 +519,14 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
 
     /* the type of graph this is, used for forward */
     TGenTransferType type = TGEN_TYPE_NONE;
-    if (!g_ascii_strcasecmp(typeStr, "forward")) {
-        type = TGEN_TYPE_FORWARD;
-    } else if (!g_ascii_strcasecmp(typeStr, "forwardserve")) {
-        type = TGEN_TYPE_FORWARD_SERVE;
-    } else if (!g_ascii_strcasecmp(typeStr, "forwardreturn")) {
-        type = TGEN_TYPE_FORWARD_RETURN;
+    if (typeStr) {
+        if (!g_ascii_strcasecmp(typeStr, "forward")) {
+            type = TGEN_TYPE_FORWARD;
+        } else if (!g_ascii_strcasecmp(typeStr, "forwardserve")) {
+            type = TGEN_TYPE_FORWARD_SERVE;
+        } else if (!g_ascii_strcasecmp(typeStr, "forwardreturn")) {
+            type = TGEN_TYPE_FORWARD_RETURN;
+        }
     }
 
     /* if we get here, we have what we need and validated it */
@@ -764,10 +766,20 @@ TGenActionType tgenaction_getType(TGenAction* action) {
 }
 
 TGenTransferType tgenaction_getTransferType(TGenAction* action) {
-    TGEN_ASSERT(action);
-    g_assert(action->data && action->type == TGEN_ACTION_START);
-    return ((TGenActionStartData*)action->data)->type;
+    TGEN_ASSERT(action);    
+    if (action->data && action->type == TGEN_ACTION_START) {
+        return ((TGenActionStartData*)action->data)->type;
+    }
+    else if (action->data && action->type == TGEN_ACTION_TRANSFER) {
+        return ((TGenActionTransferData*)action->data)->type;
+    }
+    else {
+        tgen_error("ERROR bad transfer type");
+    }
+    //g_assert(action->data && action->type == TGEN_ACTION_START);
+    
 }
+
 
 guint16 tgenaction_getServerPort(TGenAction* action) {
     TGEN_ASSERT(action);
