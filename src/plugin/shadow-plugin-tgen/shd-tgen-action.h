@@ -18,7 +18,7 @@ typedef struct _TGenAction TGenAction;
 
 TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeoutStr,
         const gchar* stalloutStr, const gchar* heartbeatStr, const gchar* loglevelStr, const gchar* serverPortStr,
-        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, GError** error);
+        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, const gchar* waitTimeStr, GError** error);
 TGenAction* tgenaction_newEndAction(const gchar* timeStr, const gchar* countStr,
         const gchar* sizeStr, GError** error);
 TGenAction* tgenaction_newPauseAction(const gchar* timeStr, glong totalIncoming, GError** error);
@@ -48,6 +48,7 @@ TGenPool* tgenaction_getPeers(TGenAction* action);
 guint64 tgenaction_getEndTimeMillis(TGenAction* action);
 guint64 tgenaction_getEndCount(TGenAction* action);
 guint64 tgenaction_getEndSize(TGenAction* action);
+TGenPool* tgenaction_getWaitTimePool(TGenAction* action);
 
 gboolean tgenaction_hasPauseTime(TGenAction* action);
 guint64 tgenaction_getPauseTimeMillis(TGenAction* action);

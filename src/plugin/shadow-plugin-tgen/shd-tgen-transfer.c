@@ -52,6 +52,7 @@ struct _TGenTransfer {
     gint64 sendRate; // DREW
 
     TGenTransferType myType; // my node's type from the start node in the action graph
+    TGenPool* waitTimesNanos;
 
     /* socket communication layer and buffers */
     TGenTransport* transport;
@@ -514,6 +515,7 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
                         tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
                         // This then must be a payload for the forwarding server to send to one of the processing servers
                         TGenDriver *dr = transfer->data1;
+                        
                         tgendriver_setPayload(dr, gbuf, g_get_monotonic_time());
 
                     }
@@ -1089,6 +1091,14 @@ TGenTransfer* tgentransfer_new(const gchar* idStr, gsize count, TGenTransferType
     }
 
     transfer->myType = myType; // DREW this is what the start node was set to the type. (TGEN_TYPE_FORWARD_SERVE, TGEN_TYPE_FORWARD_RETURN)
+
+    // transfer->waitTimesNanos = waitTimesNanos;
+
+    // if (waitTimesNanos != NULL) {
+    //     tgen_message("I have a non null waitTime");
+    // } else {
+    //     tgen_message("I have a null waitTime");
+    // }
 
     transfer->payloadChecksum = g_checksum_new(G_CHECKSUM_MD5);
 

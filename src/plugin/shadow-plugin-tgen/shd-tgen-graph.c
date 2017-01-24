@@ -23,6 +23,7 @@ typedef enum {
     TGEN_VA_LOGLEVEL = 1 << 13,
     TGEN_EA_WEIGHT = 1 << 14,
     TGEN_VA_SENDRATE = 1 << 15,
+    TGEN_VA_WAITTIME = 1 << 16,
 } AttributeFlags;
 
 struct _TGenGraph {
@@ -246,6 +247,9 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
             VAS(g->graph, "socksproxy", vertexIndex) : NULL;
     const gchar* loglevelStr = (g->knownAttributes&TGEN_VA_LOGLEVEL) ?
                 VAS(g->graph, "loglevel", vertexIndex) : NULL;
+        // for the server transfers we will need to wait some time
+    const gchar* waittimeStr = (g->knownAttributes&TGEN_VA_WAITTIME) ?
+            VAS(g->graph, "waittime", vertexIndex) : NULL;
 
     tgen_debug("validating action '%s' at vertex %li, time=%s timeout=%s stallout=%s heartbeat=%s loglevel=%s serverport=%s socksproxy=%s peers=%s",
             idStr, (glong)vertexIndex, timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, socksProxyStr, peersStr);
@@ -261,7 +265,7 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
     }
 
     GError* error = NULL;
-    TGenAction* a = tgenaction_newStartAction(timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, peersStr, socksProxyStr, typeStr, &error);
+    TGenAction* a = tgenaction_newStartAction(timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, peersStr, socksProxyStr, typeStr, waittimeStr, &error);
 
     if(a) {
         _tgengraph_storeAction(g, a, vertexIndex);
@@ -345,6 +349,7 @@ static GError* _tgengraph_parseTransferVertex(TGenGraph* g, const gchar* idStr,
     // DREW
     const gchar* rateStr = (g->knownAttributes&TGEN_VA_SENDRATE) ?
             VAS(g->graph, "sendRate", vertexIndex) : NULL;
+    
 
     tgen_debug("found vertex %li (%s), type=%s protocol=%s size=%s peers=%s timeout=%s stallout=%s sendRate=%s",
             (glong)vertexIndex, idStr, typeStr, protocolStr, sizeStr, peersStr, timeoutStr, stalloutStr, rateStr);
@@ -442,6 +447,8 @@ static AttributeFlags _tgengraph_vertexAttributeToFlag(const gchar* stringAttrib
             return TGEN_VA_ID;
         } else if(!g_ascii_strcasecmp(stringAttribute, "time")) {
             return TGEN_VA_TIME;
+        } else if(!g_ascii_strcasecmp(stringAttribute, "waittime")) {
+            return TGEN_VA_WAITTIME;
         } else if(!g_ascii_strcasecmp(stringAttribute, "serverport")) {
             return TGEN_VA_SERVERPORT;
         } else if(!g_ascii_strcasecmp(stringAttribute, "peers")) {

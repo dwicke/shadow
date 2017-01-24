@@ -19,6 +19,7 @@ typedef struct _TGenActionStartData {
     TGenPeer* socksproxy;
     TGenPool* peers;
     TGenTransferType type;
+    TGenPool* waitTimesNanos;
 } TGenActionStartData;
 
 typedef struct _TGenActionEndData {
@@ -441,7 +442,7 @@ void tgenaction_unref(TGenAction* action) {
 
 TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeoutStr,
         const gchar* stalloutStr, const gchar* heartbeatStr, const gchar* loglevelStr, const gchar* serverPortStr,
-        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, GError** error) {
+        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, const gchar* waitTimeStr, GError** error) {
     g_assert(error);
 
     /* a serverport is required */
@@ -529,6 +530,23 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
         }
     }
 
+    TGenPool* waitTimesNanos = NULL;
+    /**
+        used for the forwarding nodes to determine how long to hold the data before forwarding it.
+    **/
+    if (waitTimeStr) {
+        waitTimesNanos = tgenpool_new(g_free);
+        *error = _tgenaction_handleTimeList("waittime", waitTimeStr, waitTimesNanos);
+        if (*error) {
+            tgenpool_unref(waitTimesNanos);
+            return NULL;
+        }
+        // guint64 *pauseTimeNanos = tgenpool_getRandom(pauseTimesNanos);
+        // guint64 timeptn = (guint64)(*pauseTimeNanos);
+        // tgen_message("Got the pausetime = %llu", timeptn);
+    }
+
+
     /* if we get here, we have what we need and validated it */
     TGenAction* action = g_new0(TGenAction, 1);
     action->magic = TGEN_MAGIC;
@@ -547,6 +565,7 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
     data->serverport = htons((guint16)longport);
     data->peers = peerPool;
     data->socksproxy = socksproxy;
+    data->waitTimesNanos = waitTimesNanos;
 
     action->data = data;
 
@@ -704,6 +723,8 @@ TGenAction* tgenaction_newTransferAction(const gchar* typeStr, const gchar* prot
         }
     }
 
+    
+
     /* a transfer timeout is optional */
     guint64 timeoutNanos = 0;
     gboolean timeoutIsSet = FALSE;
@@ -823,6 +844,19 @@ GLogLevelFlags tgenaction_getLogLevel(TGenAction* action) {
     return ((TGenActionStartData*)action->data)->loglevel;
 }
 
+TGenPool* tgenaction_getWaitTimePool(TGenAction* action) {
+    TGEN_ASSERT(action);
+    g_assert(action->data && action->type == TGEN_ACTION_START);
+
+    //tgen_message("Going to get the pause time for %d", ((TGenActionTransferData*)action->data)->type);
+    if (((TGenActionStartData*)action->data)->waitTimesNanos != NULL) {
+        guint64 *waitTimeNanos = tgenpool_getRandom(((TGenActionStartData*)action->data)->waitTimesNanos);
+        guint64 timeptn = (guint64)(*waitTimeNanos);
+        tgen_message("Got the pausetime = %llu", timeptn);
+    }
+    return ((TGenActionStartData*)action->data)->waitTimesNanos;
+}
+
 void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* typeOut,
         TGenTransportProtocol* protocolOut, guint64* sizeOut, guint64* timeoutOut, guint64* stalloutOut, gint64* sendRateOut) {
     TGEN_ASSERT(action);
@@ -854,6 +888,7 @@ void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* type
             *stalloutOut = (guint64)(data->stalloutNanos / 1000000);
         }
     }
+
 }
 
 TGenPool* tgenaction_getPeers(TGenAction* action) {

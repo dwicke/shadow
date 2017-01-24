@@ -10,7 +10,8 @@
 
 struct _ForwardPeer {
     GString* peer; // the peer
-    gint64 time; // time the message was received
+    gint64 time; // time the message was received in microseconds
+    gint64 waitTime; // in microseconds
 };
 
 struct _TGenDriver {
@@ -81,7 +82,7 @@ static void _tgendriver_onTransferComplete(TGenDriver* driver, TGenAction* actio
                 // lets get who it was from...???
                 ForwardPeer *fp = g_queue_peek_tail(driver->forwardPayloads);
                 if(fp != NULL){
-                    tgen_message("I have a payload containing %s at time %d", fp->peer->str, fp->time);
+                    tgen_message("I have a payload containing %s at time %d and am waiting %dns", fp->peer->str, fp->time, fp->waitTime);
                 }
                 break;
             }
@@ -244,7 +245,7 @@ TGenPeer* tgendriver_getForwardPeers(TGenDriver* driver, TGenAction* action) {
     ForwardPeer *fpeer = g_queue_peek_head(driver->forwardPeers);
     if(fpeer) {
         // if we have waited at least 2 seconds
-        if (curTime - fpeer->time >= 2000000)
+        if (curTime - fpeer->time >= fpeer->waitTime)
         {
 
             // then I will add this peer
@@ -263,13 +264,15 @@ TGenPeer* tgendriver_getForwardPeers(TGenDriver* driver, TGenAction* action) {
         }
     }
 
-    return NULL; // here I will eventually 
+    return NULL;
 }
 
 void tgendriver_setPayload(TGenDriver* driver, GString *peer, gint64 time) {
     ForwardPeer *fpeer = g_new0(ForwardPeer, 1);
     fpeer->peer = peer;
     fpeer->time = time;
+    guint64* waitTimeNano = tgenpool_getRandom(tgenaction_getWaitTimePool(driver->startAction));
+    fpeer->waitTime = (gint64)((*waitTimeNano) * 0.001);// convert to microseconds
     g_queue_push_tail(driver->forwardPayloads,fpeer);
     // I need to also schedule the transfer action!
     _tgendriver_setStartClientTimerHelper(driver, time);
@@ -279,6 +282,8 @@ void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time) {
     ForwardPeer *fpeer = g_new0(ForwardPeer, 1);
     fpeer->peer = peer;
     fpeer->time = time;
+    guint64* waitTimeNano = tgenpool_getRandom(tgenaction_getWaitTimePool(driver->startAction));
+    fpeer->waitTime = (gint64)((*waitTimeNano) * 0.001);// convert to microseconds
     g_queue_push_tail(driver->forwardPeers,fpeer);
     _tgendriver_setStartClientTimerHelper(driver, time);
 }
@@ -288,7 +293,6 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
 
     /* the peer list of the transfer takes priority over the general start peer list
      * we must have a list of peers to transfer to one of them */
-    tgen_message("I am in initiateTransfer");
 
     TGenPool* peers = tgenaction_getPeers(action);
     
@@ -327,7 +331,7 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
         ForwardPeer *fpeer = g_queue_peek_head(driver->forwardPayloads);
         if(fpeer) {
             // if we have waited at least 2 seconds
-            if ((g_get_monotonic_time() - fpeer->time) < 2000000)
+            if ((g_get_monotonic_time() - fpeer->time) < fpeer->waitTime)
             {
                 tgen_message("Payload has not waited long enough started waiting at %d current time is %d", fpeer->time, g_get_monotonic_time());
                 //_tgendriver_continueNextActions(driver, action);
