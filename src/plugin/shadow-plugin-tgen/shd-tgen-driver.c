@@ -275,7 +275,7 @@ void tgendriver_setPayload(TGenDriver* driver, GString *peer, gint64 time) {
     fpeer->waitTime = (gint64)((*waitTimeNano) * 0.001);// convert to microseconds
     g_queue_push_tail(driver->forwardPayloads,fpeer);
     // I need to also schedule the transfer action!
-    _tgendriver_setStartClientTimerHelper(driver, time);
+    _tgendriver_setStartClientTimerHelper(driver, time + fpeer->waitTime);
 }
 
 void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time) {
@@ -285,7 +285,7 @@ void tgendriver_setForwardPeer(TGenDriver* driver, GString *peer, gint64 time) {
     guint64* waitTimeNano = tgenpool_getRandom(tgenaction_getWaitTimePool(driver->startAction));
     fpeer->waitTime = (gint64)((*waitTimeNano) * 0.001);// convert to microseconds
     g_queue_push_tail(driver->forwardPeers,fpeer);
-    _tgendriver_setStartClientTimerHelper(driver, time);
+    _tgendriver_setStartClientTimerHelper(driver, time + fpeer->waitTime);
 }
 
 static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action) {
