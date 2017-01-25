@@ -500,7 +500,7 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
                             i++;
                         }
 
-                        tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
+                        //tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
                         TGenDriver *dr = transfer->data1;
                         tgendriver_setForwardPeer(dr, gbuf, g_get_monotonic_time());
                         
@@ -512,7 +512,7 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
                             g_string_append_c(gbuf, buffer[i]);
                             i++;
                         }
-                        tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
+                        //tgen_message("Payload of the transfer is = %s and size %d", gbuf->str, gbuf->len);
                         // This then must be a payload for the forwarding server to send to one of the processing servers
                         TGenDriver *dr = transfer->data1;
                         
@@ -738,7 +738,7 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
                 g_string_printf(transfer->writeBuffer, "%s", transfer->hostname);
                 gsize sub = length - transfer->writeBuffer->len;
                 g_string_printf(transfer->writeBuffer, "%s%s", transfer->hostname, _tgentransfer_getSpaceString(sub)->str);
-                tgen_message("transmitted message = %s",transfer->writeBuffer->str);
+                //tgen_message("transmitted message = %s",transfer->writeBuffer->str);
 
             } else if (transfer->type == TGEN_TYPE_FORWARD) {
                 // just send blanks
@@ -751,7 +751,7 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
                 g_string_printf(transfer->writeBuffer, "%s", hostdata->str);
                 gsize sub = length - transfer->writeBuffer->len;
                 g_string_printf(transfer->writeBuffer, "%s%s", hostdata->str, _tgentransfer_getSpaceString(sub)->str);
-                tgen_message("transmitted message = %s",transfer->writeBuffer->str);
+                //tgen_message("transmitted message = %s",transfer->writeBuffer->str);
 
             } else {
                 transfer->writeBuffer = _tgentransfer_getRandomString(length);

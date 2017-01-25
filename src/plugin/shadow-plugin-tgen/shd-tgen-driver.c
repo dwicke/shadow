@@ -1,4 +1,4 @@
-/*
+fme/*
  * See LICENSE for licensing information
  */
 
@@ -74,7 +74,7 @@ static void _tgendriver_onTransferComplete(TGenDriver* driver, TGenAction* actio
         
         switch(tgenaction_getTransferType(driver->startAction)) {
             case TGEN_TYPE_FORWARD: {
-                tgen_message("Transfer type = forward");
+                //tgen_message("Transfer type = forward");
                 break;
             }
             case TGEN_TYPE_FORWARD_SERVE: {
@@ -82,17 +82,17 @@ static void _tgendriver_onTransferComplete(TGenDriver* driver, TGenAction* actio
                 // lets get who it was from...???
                 ForwardPeer *fp = g_queue_peek_tail(driver->forwardPayloads);
                 if(fp != NULL){
-                    tgen_message("I have a payload containing %s at time %d and am waiting %dns", fp->peer->str, fp->time, fp->waitTime);
+                    //tgen_message("I have a payload containing %s at time %d and am waiting %dns", fp->peer->str, fp->time, fp->waitTime);
                 }
                 break;
             }
             case TGEN_TYPE_FORWARD_RETURN: {
-                tgen_message("Transfer type = forward return");
+                //tgen_message("Transfer type = forward return");
                 break;
             }
             case TGEN_TYPE_NONE:
             default: {
-                tgen_message("Transfer type = nothing");
+                //tgen_message("Transfer type = nothing");
             }
         }
             
@@ -145,7 +145,7 @@ static gboolean _tgendriver_onHeartbeat(TGenDriver* driver, gpointer nullData) {
 static gboolean _tgendriver_onTransferHeartbeat(TGenDriver* driver, gpointer nullData) {
     TGEN_ASSERT(driver);
 
-    tgen_message("Going to do the heartbeat");
+    //tgen_message("Going to do the heartbeat");
     _tgendriver_processAction(driver, driver->startAction);
     tgenio_checkTimeouts(driver->io);
     /* even if the client ended, we keep serving requests.
@@ -310,19 +310,17 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
 
 
     TGenPeer* peer = tgenpool_getRandom(peers);
-    tgen_message("I finished trying to get the tgenpool %d", tgenaction_getTransferType(action));
 
 
     if (tgenaction_getTransferType(action) == TGEN_TYPE_FORWARD_RETURN) {
         // So if I'm processor node return the data back to the sender
-        tgen_message("I am a processor node a TGEN_TYPE_FORWARD_RETURN and I am getting the peer");
         peer = tgendriver_getForwardPeers(driver, action);
         if (peer == NULL) {
-            tgen_message("No peers to forward to");
-            //_tgendriver_continueNextActions(driver, action);
+            //tgen_message("No peers to forward to");
+            
             return;
         }
-        tgen_message("Forwarding to peer: %s", tgenpeer_getName(peer));
+        //tgen_message("Forwarding to peer: %s", tgenpeer_getName(peer));
     }
 
 
@@ -330,14 +328,14 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
         // so if I am serving the data then I will have to provide the data at the right time
         ForwardPeer *fpeer = g_queue_peek_head(driver->forwardPayloads);
         if(fpeer) {
-            // if we have waited at least 2 seconds
+            // if we have waited at least x seconds
             if ((g_get_monotonic_time() - fpeer->time) < fpeer->waitTime)
             {
-                tgen_message("Payload has not waited long enough started waiting at %d current time is %d", fpeer->time, g_get_monotonic_time());
+                //tgen_message("Payload has not waited long enough started waiting at %d current time is %d", fpeer->time, g_get_monotonic_time());
                 //_tgendriver_continueNextActions(driver, action);
                 return;
             }
-            tgen_message("Forwarding payload %s to %s", fpeer->peer->str, tgenpeer_getName(peer));
+            //tgen_message("Forwarding payload %s to %s", fpeer->peer->str, tgenpeer_getName(peer));
         } else {
             // if no payloads to send i just keep waiting...
             //_tgendriver_continueNextActions(driver, action);
@@ -489,13 +487,13 @@ static void _tgendriver_processAction(TGenDriver* driver, TGenAction* action) {
     switch(tgenaction_getType(action)) {
         case TGEN_ACTION_START: {
             /* slide through to the next actions */
-            tgen_message("Start Action");
+            //tgen_message("Start Action");
             _tgendriver_continueNextActions(driver, action);
 
             break;
         }
         case TGEN_ACTION_TRANSFER: {
-            tgen_message("Transfer Action");
+            //tgen_message("Transfer Action");
             _tgendriver_initiateTransfer(driver, action);
             break;
         }
