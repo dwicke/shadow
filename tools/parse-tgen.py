@@ -102,7 +102,7 @@ def run(args):
             noname_count += 1
             continue
         name_count += 1
-        if "server" in name:
+        if "server" in name or "client" in name:
             d['nodes'][name] = data
         success_count += item[2]
         error_count += item[3]
@@ -139,7 +139,7 @@ def process_tgen_log(filename):
 
                 ioparts = parts[13].split('=')
                 iodirection = ioparts[0]
-                if 'read' not in iodirection: continue #return None # this is a server, do we want its stats?
+                #if 'read' not in iodirection: continue #return None # this is a server, do we want its stats?
                 bytes = int(ioparts[1].split('/')[0])
 
                 if 'transfer-complete' in parts[6]:
@@ -154,9 +154,10 @@ def process_tgen_log(filename):
                     # if second not in d['firstbyte'][bytes]: d['firstbyte'][bytes][second] = []
                     # d['firstbyte'][bytes][second].append(parts[10].split(',')[5])
                     if parts[10].split(',')[5] not in d: d[parts[10].split(',')[5]] = {}
-                    #if second not in d[parts[10].split(',')[5]]: d[parts[10].split(',')[5]][second] = []
+                    if second not in d[parts[10].split(',')[5]]: d[parts[10].split(',')[5]][second] = []
+                    d[parts[10].split(',')[5]][second].append(bytes)
+                    
 
-                    d[parts[10].split(',')[5]][second] = bytes
 
 
 

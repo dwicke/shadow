@@ -725,7 +725,10 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
 
     /* keep writing until blocked */
     while(!transfer->writeBuffer) {
+
         gsize length = MIN(16384, (transfer->size - transfer->bytes.payloadWrite));
+
+
 
         if(length > 0) {
             /* we need to send more payload */
@@ -809,6 +812,11 @@ static void _tgentransfer_onWritable(TGenTransfer* transfer) {
 
     tgen_debug("active transfer %s is writable", _tgentransfer_toString(transfer));
     gsize startBytes = transfer->bytes.totalWrite;
+
+    if (startBytes == 0 && transfer->type == TGEN_TYPE_FORWARD_RETURN) {
+        // then I'll need to change the payload size [5kb, 5mb]
+        transfer->size = (5000000 - 5000 +1)*(double)rand()/RAND_MAX + 5000;
+    }
 
     /* first check if we need to send a command to the other end */
     if(transfer->isCommander && transfer->state == TGEN_XFER_COMMAND) {
@@ -927,9 +935,12 @@ static void _tgentransfer_log(TGenTransfer* transfer, gboolean wasActive) {
             gchar* bytesMessage = _tgentransfer_getBytesStatusReport(transfer);
             gchar* timeMessage = _tgentransfer_getTimeStatusReport(transfer);
 
-            tgen_message("[transfer-complete] transport %s transfer %s %s %s",
-                    tgentransport_toString(transfer->transport),
-                    _tgentransfer_toString(transfer), bytesMessage, timeMessage);
+            if (transfer->type == TGEN_TYPE_FORWARD_RETURN || transfer->type == TGEN_TYPE_FORWARD_SERVE || transfer->type == TGEN_TYPE_FORWARD || transfer->type == TGEN_TYPE_PUT)
+            {
+                tgen_message("[transfer-complete] transport %s transfer %s %s %s",
+                        tgentransport_toString(transfer->transport),
+                        _tgentransfer_toString(transfer), bytesMessage, timeMessage);
+            } // could do another if to get the receives....
 
             gint64 now = g_get_monotonic_time();
             transfer->time.lastBytesStatusReport = now;
