@@ -11,6 +11,11 @@
  * of our tgen modules without a pointer to the tgen struct */
 TGenLogFunc tgenLogFunc = NULL;
 GString* tgenLogDomain = NULL;
+TGenStatFunc tgenStatFunc = NULL; // Drew added so we can do stat logging across all tgen modules
+// these are global
+static int node_id = 0;
+static int node_class = 0;
+
 
 static const gchar* _tgenmain_logLevelToString(GLogLevelFlags logLevel) {
     switch (logLevel) {
@@ -37,6 +42,30 @@ static void _tgenmain_logHandler(const gchar *logDomain, GLogLevelFlags logLevel
     if(logLevel <= filter) {
         g_print("%s\n", message);
     }
+}
+
+static void _tgenmain_stat(const gchar* fileName, const gint lineNum, const gchar* functionName, const gchar* format, ...) {
+    va_list vargs;
+    va_start(vargs, format);
+
+    gchar* fileStr = fileName ? g_path_get_basename(fileName) : g_strdup("n/a");
+    const gchar* functionStr = functionName ? functionName : "n/a";
+
+    GDateTime* dt = g_date_time_new_now_local();
+    GString* newformat = g_string_new(NULL);
+
+    g_string_append_printf(newformat, "%04i-%02i-%02i %02i:%02i:%02i %"G_GINT64_FORMAT".%06i [%s] [%s:%i] [%s] %s",
+            g_date_time_get_year(dt), g_date_time_get_month(dt), g_date_time_get_day_of_month(dt),
+            g_date_time_get_hour(dt), g_date_time_get_minute(dt), g_date_time_get_second(dt),
+            g_date_time_to_unix(dt), g_date_time_get_microsecond(dt),
+            _tgenmain_logLevelToString(level), fileStr, lineNum, functionName, format);
+    g_logv(tgenLogDomain->str, level, newformat->str, vargs);
+
+    g_string_free(newformat, TRUE);
+    g_date_time_unref(dt);
+    g_free(fileStr);
+
+    va_end(vargs);
 }
 
 static void _tgenmain_log(GLogLevelFlags level, const gchar* fileName, const gint lineNum, const gchar* functionName, const gchar* format, ...) {
@@ -76,6 +105,7 @@ static void _tgenmain_cleanup(gint status, gpointer arg) {
 
 static gint _tgenmain_run(gint argc, gchar *argv[]) {
     tgenLogFunc = _tgenmain_log;
+    tgenStatFunc = _tgenmain_stat;
 
     srand(g_get_monotonic_time());
     /* construct our unique log domain */
@@ -108,9 +138,9 @@ static gint _tgenmain_run(gint argc, gchar *argv[]) {
 //        graph = tgengraph_new(argv[1]);
 //    }
 
-    /* argv[0] is program name, argv[1] should be config file */
+    /* argv[0] is program name, argv[1] should be config file, argv[2] should be the node_id, argv[3] should be the class_id */
     if (argc != 2) {
-        tgen_warning("USAGE: %s path/to/tgen.xml", argv[0]);
+        tgen_warning("USAGE: %s path/to/tgen.xml node_id class_id", argv[0]);
         tgen_critical("cannot continue: incorrect argument list format")
         return -1;
     }

@@ -940,6 +940,28 @@ static void _tgentransfer_log(TGenTransfer* transfer, gboolean wasActive) {
                 tgen_message("[transfer-complete] transport %s transfer %s %s %s",
                         tgentransport_toString(transfer->transport),
                         _tgentransfer_toString(transfer), bytesMessage, timeMessage);
+
+                tgen_stat_message("%llu %s", transfer->size, transfer->)
+                
+                // open a file and write the stats to it...???
+                // if the file does not exist so will have to create it
+                GIOChannel *chan = NULL;
+                if (g_file_test("~/stats.txt", G_FILE_TEST_EXISTS)) {
+                    chan = g_io_channel_new_file ("~/stats.txt", "r+", NULL); // can just read/write append
+                } else {
+                    chan = g_io_channel_new_file ("~/stats.txt", "w+", NULL);
+                }
+
+                if (chan) {
+                    // we have a channel so lets write to it.
+                    // we need to know what time step we are on
+                    // also we need to check the first column
+
+                }
+
+
+
+
             } // could do another if to get the receives....
 
             gint64 now = g_get_monotonic_time();

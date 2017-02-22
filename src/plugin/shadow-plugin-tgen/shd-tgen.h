@@ -6,6 +6,7 @@
 #define SHD_TGEN_H_
 
 #include <glib.h>
+#include <glib/gstdio.h>
 #include <sys/epoll.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -28,12 +29,17 @@
 typedef void (*TGenLogFunc)(GLogLevelFlags level, const char* fileName, const int lineNum, const char* functionName, const char* format, ...);
 extern TGenLogFunc tgenLogFunc;
 
+typedef void (*TGenStatFunc)(const char* fileName, const int lineNum, const char* functionName, const char* format, ...);
+extern TGenStatFunc tgenStatFunc;
+
 #define tgen_error(...)     if(tgenLogFunc){tgenLogFunc(G_LOG_LEVEL_ERROR, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
 #define tgen_critical(...)  if(tgenLogFunc){tgenLogFunc(G_LOG_LEVEL_CRITICAL, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
 #define tgen_warning(...)   if(tgenLogFunc){tgenLogFunc(G_LOG_LEVEL_WARNING, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
 #define tgen_message(...)   if(tgenLogFunc){tgenLogFunc(G_LOG_LEVEL_MESSAGE, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
 #define tgen_info(...)      if(tgenLogFunc){tgenLogFunc(G_LOG_LEVEL_INFO, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
 #define tgen_debug(...)     if(tgenLogFunc){tgenLogFunc(G_LOG_LEVEL_DEBUG, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
+
+#define tgen_stat_message(...)		if(tgenStatFunc){tgenStatFunc(__FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);}
 
 #include "shd-tgen-global-lock.h"
 #include "shd-tgen-io.h"
