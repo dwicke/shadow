@@ -815,7 +815,7 @@ static void _tgentransfer_onWritable(TGenTransfer* transfer) {
 
     if (startBytes == 0 && transfer->type == TGEN_TYPE_FORWARD_RETURN) {
         // then I'll need to change the payload size [5kb, 5mb]
-        transfer->size = (5000000 - 5000 +1)*(double)rand()/RAND_MAX + 5000;
+        transfer->size = (gsize) g_random_int_range(5000, 5000000);
     }
 
     /* first check if we need to send a command to the other end */
