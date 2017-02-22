@@ -762,8 +762,8 @@ static void _tgentransfer_writePayload(TGenTransfer* transfer) {
             // pause before sending (in microsends) DREW
             if (transfer->sendRate > 0) {
                 // pick a random rate between .001s and 1s
-                int lambdarate =  (1000000 - 1000 +1)*(double)rand()/RAND_MAX + 1000; // this is .01 seconds or 10000 microseconds
-                gint64 timeToNextWrite = -logf(1.0f - (float) random() / (RAND_MAX + 1)) / lambdarate;
+                gdouble lambdarate =  g_random_double_range((gdouble)0.001, (gdouble)1.0);//(1000000 - 1000 +1)*(double)rand()/RAND_MAX + 1000; // this is .01 seconds or 10000 microseconds
+                gint64 timeToNextWrite = (gint64) (-log(1.0 - g_random_double()) / lambdarate) * ((gdouble)1000000.0);//-logf(1.0f - (float) random() / (RAND_MAX + 1)) / lambdarate;
                 gint64 endTime = g_get_monotonic_time() + timeToNextWrite;
                 while(g_get_monotonic_time() < endTime) {} // busy wait
             }
