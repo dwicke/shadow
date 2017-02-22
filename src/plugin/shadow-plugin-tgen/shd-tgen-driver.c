@@ -1,4 +1,4 @@
-fme/*
+/*
  * See LICENSE for licensing information
  */
 
@@ -252,7 +252,7 @@ TGenPeer* tgendriver_getForwardPeers(TGenDriver* driver, TGenAction* action) {
             TGenPool* peers = tgenaction_getPeers(action);
             TGenPeer *peer;
             int i = 0;
-            while(peer = tgenpool_getIndex(peers, i)) {
+            while((peer = tgenpool_getIndex(peers, i))) {
                 if(g_ascii_strncasecmp(tgenpeer_getName(peer), fpeer->peer->str, fpeer->peer->len) == 0)
                 {
                     // then I'm done with this one.
