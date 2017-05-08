@@ -20,6 +20,7 @@ typedef struct _TGenActionStartData {
     TGenPool* peers;
     TGenTransferType type;
     TGenPool* waitTimesNanos;
+    gdouble percentServers;
 } TGenActionStartData;
 
 typedef struct _TGenActionEndData {
@@ -442,7 +443,7 @@ void tgenaction_unref(TGenAction* action) {
 
 TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeoutStr,
         const gchar* stalloutStr, const gchar* heartbeatStr, const gchar* loglevelStr, const gchar* serverPortStr,
-        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, const gchar* waitTimeStr, GError** error) {
+        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, const gchar* waitTimeStr, const gchar* percentServersStr, GError** error) {
     g_assert(error);
 
     /* a serverport is required */
@@ -477,6 +478,15 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
             return NULL;
         }
     }
+
+    gdouble percentServers = 1.0;
+    if (percentServersStr && g_ascii_strncasecmp(percentServersStr, "\0", (gsize) 1)) {
+        percentServers = g_ascii_strtod(percentServersStr, NULL);
+        if (*error) {
+            return NULL;
+        }
+    }
+    
 
     guint64 heartbeatPeriodNanos = 0;
     if (heartbeatStr && g_ascii_strncasecmp(heartbeatStr, "\0", (gsize) 1)) {
@@ -547,6 +557,8 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
     }
 
 
+
+
     /* if we get here, we have what we need and validated it */
     TGenAction* action = g_new0(TGenAction, 1);
     action->magic = TGEN_MAGIC;
@@ -566,6 +578,7 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
     data->peers = peerPool;
     data->socksproxy = socksproxy;
     data->waitTimesNanos = waitTimesNanos;
+    data->percentServers = percentServers;
 
     action->data = data;
 
@@ -902,6 +915,10 @@ TGenPool* tgenaction_getPeers(TGenAction* action) {
     } else {
         return NULL;
     }
+}
+
+gdouble tgenaction_getPercentServers(TGenAction* action) {
+    return ((TGenActionStartData*)action->data)->percentServers;
 }
 
 guint64 tgenaction_getEndTimeMillis(TGenAction* action) {

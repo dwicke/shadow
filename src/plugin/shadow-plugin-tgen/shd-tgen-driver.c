@@ -45,6 +45,7 @@ struct _TGenDriver {
     gsize totalBytesWritten;
     const gchar* peer;
 
+    TGenPool* chosenPeers;
 
     GQueue *forwardPeers;// the queue of ForwardPeer
     GQueue *forwardPayloads; // the queue of payloads to go to the processing servers
@@ -296,11 +297,38 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
 
     TGenPool* peers = tgenaction_getPeers(action);
     
+
     
     if (!peers) {
         peers = tgenaction_getPeers(driver->startAction);
     }
 
+    
+    if (driver->chosenPeers != NULL) {
+        peers = driver->chosenPeers;
+    } else {
+        // build the chosenPeers
+        gint numPeers = tgenpool_getNumberElements(peers);
+        int numberOfPeers = tgenaction_getPercentServers(driver->startAction) * numPeers;
+        driver->chosenPeers = tgenpool_new(g_free);
+        gpointer shuffledpeers[numPeers]; 
+        // build peers
+        for (int i = 0; i < numPeers; i++) {
+            shuffledpeers[i] = tgenpool_getIndex(peers, i);
+        }
+        // now shuffle them
+        for (int i = 0; i < numPeers; i++) {
+            gpointer idata = shuffledpeers[i];
+            int newLoc = g_random_int_range(0, numPeers);
+            shuffledpeers[i] = shuffledpeers[newLoc];
+            shuffledpeers[newLoc] = idata;
+        }
+        // take the top numberOfPeers
+        for (int i = 0; i < numberOfPeers; i++) {
+            tgenpool_add(driver->chosenPeers, shuffledpeers[i]);
+        }
+    }
+    
     
 
     if(!peers && tgenaction_getTransferType(action) != TGEN_TYPE_FORWARD_RETURN) {

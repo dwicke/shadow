@@ -18,7 +18,7 @@ typedef struct _TGenAction TGenAction;
 
 TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeoutStr,
         const gchar* stalloutStr, const gchar* heartbeatStr, const gchar* loglevelStr, const gchar* serverPortStr,
-        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, const gchar* waitTimeStr, GError** error);
+        const gchar* peersStr, const gchar* socksProxyStr, const gchar* typeStr, const gchar* waitTimeStr, const gchar* percentServersStr, GError** error);
 TGenAction* tgenaction_newEndAction(const gchar* timeStr, const gchar* countStr,
         const gchar* sizeStr, GError** error);
 TGenAction* tgenaction_newPauseAction(const gchar* timeStr, glong totalIncoming, GError** error);
@@ -39,6 +39,7 @@ guint64 tgenaction_getStartTimeMillis(TGenAction* action);
 guint64 tgenaction_getDefaultTimeoutMillis(TGenAction* action);
 guint64 tgenaction_getDefaultStalloutMillis(TGenAction* action);
 guint64 tgenaction_getHeartbeatPeriodMillis(TGenAction* action);
+gdouble tgenaction_getPercentServers(TGenAction* action);
 GLogLevelFlags tgenaction_getLogLevel(TGenAction* action);
 
 void tgenaction_getTransferParameters(TGenAction* action, TGenTransferType* typeOut,

@@ -16,5 +16,5 @@ void tgenpool_unref(TGenPool* pool);
 void tgenpool_add(TGenPool* pool, gpointer item);
 gpointer tgenpool_getRandom(TGenPool* pool);
 gpointer tgenpool_getIndex(TGenPool* pool, const gint position);
-
+gint tgenpool_getNumberElements(TGenPool* pool);
 #endif /* SHD_TGEN_POOL_H_ */

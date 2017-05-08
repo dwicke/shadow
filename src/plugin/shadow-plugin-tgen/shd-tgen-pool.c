@@ -68,3 +68,8 @@ gpointer tgenpool_getIndex(TGenPool* pool, const gint position) {
     TGEN_ASSERT(pool);
     return (gpointer)g_tree_lookup(pool->items, &position);
 }
+
+gint tgenpool_getNumberElements(TGenPool* pool) {
+    TGEN_ASSERT(pool);
+    return g_tree_nnodes(pool->items);
+}

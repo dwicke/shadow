@@ -24,6 +24,7 @@ typedef enum {
     TGEN_EA_WEIGHT = 1 << 14,
     TGEN_VA_SENDRATE = 1 << 15,
     TGEN_VA_WAITTIME = 1 << 16,
+    TGEN_VA_PERCENT_SERVER = 1 << 17,
 } AttributeFlags;
 
 struct _TGenGraph {
@@ -250,6 +251,8 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
         // for the server transfers we will need to wait some time
     const gchar* waittimeStr = (g->knownAttributes&TGEN_VA_WAITTIME) ?
             VAS(g->graph, "waittime", vertexIndex) : NULL;
+    const gchar* percentServersStr = (g->knownAttributes&TGEN_VA_PERCENT_SERVER) ?
+            VAS(g->graph, "percentServer", vertexIndex) : NULL;
 
     tgen_debug("validating action '%s' at vertex %li, time=%s timeout=%s stallout=%s heartbeat=%s loglevel=%s serverport=%s socksproxy=%s peers=%s",
             idStr, (glong)vertexIndex, timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, socksProxyStr, peersStr);
@@ -265,7 +268,7 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
     }
 
     GError* error = NULL;
-    TGenAction* a = tgenaction_newStartAction(timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, peersStr, socksProxyStr, typeStr, waittimeStr, &error);
+    TGenAction* a = tgenaction_newStartAction(timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, peersStr, socksProxyStr, typeStr, waittimeStr, percentServersStr, &error);
 
     if(a) {
         _tgengraph_storeAction(g, a, vertexIndex);
