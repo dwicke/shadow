@@ -137,11 +137,16 @@ def process_tgen_log(filename):
         try:
             if name is None and re.search("Initializing traffic generator on host", line) is not None:
                 name = line.strip().split()[11]
-            elif re.search("driver-heartbeat", line) is not None or re.search("transfer-error", line) is not None:
+            elif re.search("_tgentransfer_readChecksum", line) is not None:
                 parts = line.strip().split()
-                
 
-                if 'driver-heartbeat' in parts[6]:
+                if re.search("bulkclient", line) is not None:
+                    if "bulkclient" not in d: d["bulkclient"] = 1
+                elif re.search("webclient", line) is not None:
+                    if "webclient" not in d: d["webclient"] = 1
+                sim_seconds = timestamp_to_seconds(parts[2])
+                second = int(sim_seconds)
+                if re.search('error=NONE',line) is not None:
                     success_count += 1
                     # cmdtime = int(parts[21].split('=')[1])/1000000.0
                     # rsptime = int(parts[22].split('=')[1])/1000000.0
@@ -152,25 +157,16 @@ def process_tgen_log(filename):
                     # if bytes not in d['firstbyte']: d['firstbyte'][bytes] = {}
                     # if second not in d['firstbyte'][bytes]: d['firstbyte'][bytes][second] = []
                     # d['firstbyte'][bytes][second].append(parts[10].split(',')[5])
-                    sim_seconds = timestamp_to_seconds(parts[2])
-                    second = int(sim_seconds)
-
-                    ioparts = parts[7].split('=')
-                    iodirection = ioparts[0]
-                    bytes = int(ioparts[1])
-                    if second not in d: d[second] = bytes
-                    else: d[second] = d[second] + bytes
                     
-
-
-
-
-                    # if bytes not in d['lastbyte']: d['lastbyte'][bytes] = {}
-                    # if second not in d['lastbyte'][bytes]: d['lastbyte'][bytes][second] = []
-
-                    # d['lastbyte'][bytes][second].append(parts[10].split(',')[5])
-
-                    #print(parts[10].split(',')[5])
+                    bytes = int(parts[9].split(",")[4])
+                    ##bytes = int(ioparts[1])
+                    if second not in d: 
+                        d[second] = bytes
+                    else: 
+                        d[second] = d[second] + bytes
+                        #print("time {} bytes {} d[second] = {}".format(second, parts[9].split(",")[4], d[second]))
+                    # if int(parts[9].split(",")[4]) > 122880:
+                    #     print("time {} bytes {} d[second] = {}".format(second, parts[9].split(",")[4], d[second]))
 
                 elif 'transfer-error' in parts[6]:
                     error_count += 1
@@ -178,11 +174,8 @@ def process_tgen_log(filename):
                     # if code not in d['errors']: d['errors'][code] = {}
                     # if second not in d['errors'][code]: d['errors'][code][second] = []
                     # d['errors'][code][second].append(bytes)
-            elif re.search("_tgentransfer_readChecksum", line) is not None:
-                if re.search("bulkclient", line) is not None:
-                    if "bulkclient" not in d: d["bulkclient"] = 1
-                elif re.search("webclient", line) is not None:
-                    if "webclient" not in d: d["webclient"] = 1
+            
+                
 
         except: continue # data format error
 

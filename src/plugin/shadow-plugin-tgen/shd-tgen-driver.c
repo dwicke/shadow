@@ -308,7 +308,9 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
         peers = driver->chosenPeers;
     } else {
         // build the chosenPeers
+        tgen_message("Creating Pool of chosen Peers");
         gint numPeers = tgenpool_getNumberElements(peers);
+        tgen_message("PercentServers %f yes", tgenaction_getPercentServers(driver->startAction));
         int numberOfPeers = tgenaction_getPercentServers(driver->startAction) * numPeers;
         driver->chosenPeers = tgenpool_new(g_free);
         gpointer shuffledpeers[numPeers]; 
@@ -326,6 +328,7 @@ static void _tgendriver_initiateTransfer(TGenDriver* driver, TGenAction* action)
         // take the top numberOfPeers
         for (int i = 0; i < numberOfPeers; i++) {
             tgenpool_add(driver->chosenPeers, shuffledpeers[i]);
+            tgen_message("Added a peer");
         }
     }
     

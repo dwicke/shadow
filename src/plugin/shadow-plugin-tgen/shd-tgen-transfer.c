@@ -179,9 +179,9 @@ static const gchar* _tgentransfer_toString(TGenTransfer* transfer) {
     if(!transfer->string) {
         GString* stringBuffer = g_string_new(NULL);
 
-        g_string_printf(stringBuffer, "%s,%"G_GSIZE_FORMAT",%s,%s,%"G_GSIZE_FORMAT",%s,%"G_GSIZE_FORMAT",state=%s,error=%s",
+        g_string_printf(stringBuffer, "%s,%"G_GSIZE_FORMAT",%s,%s,%"G_GSIZE_FORMAT",%s,%"G_GSIZE_FORMAT",%"G_GSIZE_FORMAT",state=%s,error=%s",
                 transfer->id, transfer->count, transfer->hostname, _tgentransfer_typeToString(transfer),
-                transfer->size, transfer->remoteName, transfer->remoteCount,
+                transfer->size, transfer->remoteName, transfer->remoteCount, transfer->bytes.payloadRead,
                 _tgentransfer_stateToString(transfer->state), _tgentransfer_errorToString(transfer->error));
 
         transfer->string = g_string_free(stringBuffer, FALSE);
@@ -472,6 +472,7 @@ static void _tgentransfer_readPayload(TGenTransfer* transfer) {
     while(TRUE) {
         gsize length = MIN(65536, (transfer->size - transfer->bytes.payloadRead));
 
+
         if(length > 0) {
             /* we need to read more payload */
             gssize bytes = tgentransport_read(transfer->transport, buffer, length);
@@ -557,7 +558,10 @@ static void _tgentransfer_readChecksum(TGenTransfer* transfer) {
         gchar** parts = g_strsplit(line, " ", 0);
         const gchar* receivedSum = parts[1];
         g_assert(receivedSum);
+/*
 
+
+*/
         /* check that the sums match */
         if(!g_ascii_strncasecmp(computedSum, receivedSum, (gsize)sha1Length)) {
             tgen_message("transport %s transfer %s MD5 checksums passed: computed=%s received=%s",

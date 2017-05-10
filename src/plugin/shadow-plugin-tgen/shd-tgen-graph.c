@@ -253,6 +253,7 @@ static GError* _tgengraph_parseStartVertex(TGenGraph* g, const gchar* idStr,
             VAS(g->graph, "waittime", vertexIndex) : NULL;
     const gchar* percentServersStr = (g->knownAttributes&TGEN_VA_PERCENT_SERVER) ?
             VAS(g->graph, "percentServer", vertexIndex) : NULL;
+    tgen_message("PercentServersStr is = %s", percentServersStr);
 
     tgen_debug("validating action '%s' at vertex %li, time=%s timeout=%s stallout=%s heartbeat=%s loglevel=%s serverport=%s socksproxy=%s peers=%s",
             idStr, (glong)vertexIndex, timeStr, timeoutStr, stalloutStr, heartbeatStr, loglevelStr, serverPortStr, socksProxyStr, peersStr);
@@ -474,6 +475,8 @@ static AttributeFlags _tgengraph_vertexAttributeToFlag(const gchar* stringAttrib
             return TGEN_VA_HEARTBEAT;
         } else if(!g_ascii_strcasecmp(stringAttribute, "loglevel")) {
             return TGEN_VA_LOGLEVEL;
+        } else if(!g_ascii_strcasecmp(stringAttribute, "percentServer")) {
+            return TGEN_VA_PERCENT_SERVER;
         }
     }
     return TGEN_A_NONE;

@@ -480,8 +480,11 @@ TGenAction* tgenaction_newStartAction(const gchar* timeStr, const gchar* timeout
     }
 
     gdouble percentServers = 1.0;
+    tgen_message("PercentServer string %s", percentServersStr);
+
     if (percentServersStr && g_ascii_strncasecmp(percentServersStr, "\0", (gsize) 1)) {
         percentServers = g_ascii_strtod(percentServersStr, NULL);
+        tgen_message("PercentServer value %f", percentServers);
         if (*error) {
             return NULL;
         }
