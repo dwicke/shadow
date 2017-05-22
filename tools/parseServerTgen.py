@@ -157,13 +157,19 @@ def process_tgen_log(filename):
                     # if bytes not in d['firstbyte']: d['firstbyte'][bytes] = {}
                     # if second not in d['firstbyte'][bytes]: d['firstbyte'][bytes][second] = []
                     # d['firstbyte'][bytes][second].append(parts[10].split(',')[5])
-                    
+                    recvFromName = parts[9].split(",")[5]
+
+                    if recvFromName not in d:
+                        d[recvFromName] = [0] * 3600
+
                     bytes = int(parts[9].split(",")[4])
                     ##bytes = int(ioparts[1])
-                    if second not in d: 
-                        d[second] = bytes
-                    else: 
-                        d[second] = d[second] + bytes
+                    d[recvFromName][second - 1] = d[recvFromName][second - 1] + bytes
+
+                    # if second not in d: 
+                    #     d[second] = bytes
+                    # else: 
+                    #     d[second] = d[second] + bytes
                         #print("time {} bytes {} d[second] = {}".format(second, parts[9].split(",")[4], d[second]))
                     # if int(parts[9].split(",")[4]) > 122880:
                     #     print("time {} bytes {} d[second] = {}".format(second, parts[9].split(",")[4], d[second]))
