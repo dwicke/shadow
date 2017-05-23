@@ -141,9 +141,9 @@ def process_tgen_log(filename):
                 parts = line.strip().split()
 
                 if re.search("bulkclient", line) is not None:
-                    if "bulkclient" not in d: d["bulkclient"] = 1
+                    d["class"] = 2
                 elif re.search("webclient", line) is not None:
-                    if "webclient" not in d: d["webclient"] = 1
+                    if "class" not in d: d["class"] = 1
                 sim_seconds = timestamp_to_seconds(parts[2])
                 second = int(sim_seconds)
                 if re.search('error=NONE',line) is not None:
@@ -160,11 +160,11 @@ def process_tgen_log(filename):
                     recvFromName = parts[9].split(",")[5]
 
                     if recvFromName not in d:
-                        d[recvFromName] = [0] * 3600
+                        d[recvFromName] = [0] * 240
 
                     bytes = int(parts[9].split(",")[4])
                     ##bytes = int(ioparts[1])
-                    d[recvFromName][second - 1] = d[recvFromName][second - 1] + bytes
+                    d[recvFromName][second - 1001] = d[recvFromName][second - 1001] + bytes
 
                     # if second not in d: 
                     #     d[second] = bytes
